@@ -1,0 +1,42 @@
+BasedOnStyle: LLVM
+IndentWidth: 4
+TabWidth: 4
+UseTab: ForIndentation
+
+AlignConsecutiveMacros:
+  Enabled: true
+  AcrossEmptyLines: false
+  AcrossComments: true
+
+AlignEscapedNewlines: Right
+IndentPPDirectives: AfterHash
+
+AlignConsecutiveAssignments:
+  Enabled: true
+  AcrossEmptyLines: false
+  AcrossComments: true
+  AlignCompound: true
+  PadOperators: false
+
+# needs clang-format 17
+#AlignConsecutiveShortCaseStatements:
+#  Enabled: true
+#  AcrossEmptyLines: false
+#  AcrossComments: true
+#  AlignCaseColons: false
+
+AlignConsecutiveBitFields:
+  Enabled: true
+  AcrossEmptyLines: false
+  AcrossComments: true
+
+IndentCaseLabels: true
+Cpp11BracedListStyle: false
+SpaceInEmptyBlock: false
+AllowShortBlocksOnASingleLine: Always
+AllowShortCaseLabelsOnASingleLine: true
+AllowShortEnumsOnASingleLine: true
+AllowShortFunctionsOnASingleLine: true
+AllowShortIfStatementsOnASingleLine: AllIfsAndElse
+AllowShortLambdasOnASingleLine: true
+AllowShortLoopsOnASingleLine: true
