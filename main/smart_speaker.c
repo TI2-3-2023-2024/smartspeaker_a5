@@ -24,6 +24,10 @@ static esp_periph_set_handle_t periph_set;
 static audio_event_iface_handle_t evt;
 static audio_element_handle_t i2s_stream_writer;
 
+typedef void(audio_init_fn)(audio_element_handle_t, audio_event_iface_handle_t);
+typedef void(audio_deinit_fn)(audio_element_handle_t,
+                              audio_event_iface_handle_t);
+
 static void app_init(void) {
 	esp_log_level_set("*", ESP_LOG_INFO);
 
@@ -63,12 +67,25 @@ static void app_init(void) {
 	ESP_LOGI(TAG, "Add keys to event listener");
 	audio_event_iface_set_listener(esp_periph_set_get_event_iface(periph_set),
 	                               evt);
+
+	/* Initialise Bluetooth sink component. */
+	ESP_LOGI(TAG, "Initialise Bluetooth sink");
+	bt_sink_init(periph_set);
 }
 
 static void app_free(void) {
+	ESP_LOGI(TAG, "Deinitialise Bluetooth sink");
+	bt_sink_destroy(periph_set);
+
+	audio_event_iface_remove_listener(
+	    esp_periph_set_get_event_iface(periph_set), evt);
+	audio_event_iface_destroy(evt);
+
 	ESP_LOGI(TAG, "Deinitialise peripherals");
 	esp_periph_set_stop_all(periph_set);
 	esp_periph_set_destroy(periph_set);
+
+	audio_element_deinit(i2s_stream_writer);
 
 	ESP_LOGI(TAG, "Deinitialise audio board");
 	audio_hal_ctrl_codec(board_handle->audio_hal, AUDIO_HAL_CODEC_MODE_BOTH,
@@ -76,8 +93,19 @@ static void app_free(void) {
 	audio_board_deinit(board_handle);
 }
 
+static void pipeline_init(audio_init_fn init_fn,
+                          audio_element_handle_t output_stream_writer) {
+	init_fn(output_stream_writer, evt);
+}
+
+static void pipeline_destroy(audio_deinit_fn deinit_fn,
+                             audio_element_handle_t output_stream_writer) {
+	deinit_fn(output_stream_writer, evt);
+}
+
 void app_main(void) {
 	app_init();
+	pipeline_init(bt_pipeline_init, i2s_stream_writer);
 
 	/* Main eventloop */
 	ESP_LOGI(TAG, "Entering main eventloop");
@@ -91,6 +119,8 @@ void app_main(void) {
 			continue;
 		}
 
+		bt_event_handler(msg);
+
 		if ((msg.source_type == PERIPH_ID_TOUCH ||
 		     msg.source_type == PERIPH_ID_BUTTON ||
 		     msg.source_type == PERIPH_ID_ADC_BTN) &&
@@ -101,7 +131,6 @@ void app_main(void) {
 				ESP_LOGI(TAG, "[ * ] [Play] touch tap event");
 			} else if ((int)msg.data == get_input_set_id()) {
 				ESP_LOGI(TAG, "[ * ] [Set] touch tap event");
-				// bt_sink_free();
 			} else if ((int)msg.data == get_input_volup_id()) {
 				ESP_LOGI(TAG, "[ * ] [Vol+] touch tap event");
 			} else if ((int)msg.data == get_input_voldown_id()) {
@@ -109,5 +138,6 @@ void app_main(void) {
 			}
 		}
 	}
+	pipeline_destroy(bt_pipeline_destroy, i2s_stream_writer);
 	app_free();
 }
