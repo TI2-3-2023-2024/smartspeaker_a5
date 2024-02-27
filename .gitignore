@@ -1,3 +1,5 @@
 build/
 .cache/
 dependencies.lock
+sdkconfig
+sdkconfig.old
