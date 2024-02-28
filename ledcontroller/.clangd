@@ -1,0 +1,5 @@
+CompileFlags:
+  CompilationDatabase: ['build']
+  #Add: ['-isysroot=~/.espressif/tools/xtensa-esp32-elf/esp-12.2.0_20230208/xtensa-esp32-elf/xtensa-esp32-elf']
+  Add: ['-isysroot=~/.espressif/tools/xtensa-esp32-elf/esp-2021r2-patch5-8.4.0/xtensa-esp32-elf/xtensa-esp32-elf']
+  Remove: ['-fno-tree-switch-conversion', '-fstrict-volatile-bitfields', '-fno-shrink-wrap', '-mlongcalls']
