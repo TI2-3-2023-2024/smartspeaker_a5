@@ -1,4 +1,4 @@
-menu "Smart Speaker"
+menu "Bluetooth Sink"
 
 config BT_SINK_DEVICE_NAME
 	string "Bluetooth device name"
