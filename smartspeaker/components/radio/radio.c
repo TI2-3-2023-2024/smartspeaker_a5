@@ -1,3 +1,4 @@
+#include <assert.h>
 #include <stdbool.h>
 #include <stdio.h>
 
@@ -17,8 +18,8 @@
 #include "http_stream.h"
 #include "i2s_stream.h"
 #include "mp3_decoder.h"
-#include "periph_touch.h"
 #include "periph_button.h"
+#include "periph_touch.h"
 
 #include "radio.h"
 
@@ -43,7 +44,7 @@ static const radio_channel channels[] = {
 	  .url  = "http://icecast-servers.vrtcdn.be/radio1_classics_mid.mp3" }
 };
 static int cur_chnl_idx = 0;
-int player_volume = 0;
+int player_volume       = 0;
 
 void radio_start(void *params);
 
@@ -61,22 +62,27 @@ esp_err_t http_stream_event_handle(http_stream_event_msg_t *msg) {
 }
 
 void radio_deinit() {
-	audio_pipeline_stop(pipeline);
-	audio_pipeline_wait_for_stop(pipeline);
-	audio_pipeline_terminate(pipeline);
+	esp_err_t err = audio_pipeline_stop(pipeline);
+	err           = audio_pipeline_wait_for_stop(pipeline);
+	err           = audio_pipeline_terminate(pipeline);
 
-	audio_pipeline_unregister(pipeline, http_stream_reader);
-	audio_pipeline_unregister(pipeline, i2s_stream_writer);
-	audio_pipeline_unregister(pipeline, mp3_decoder);
+	err = audio_pipeline_unregister(pipeline, http_stream_reader);
+	err = audio_pipeline_unregister(pipeline, i2s_stream_writer);
+	err = audio_pipeline_unregister(pipeline, mp3_decoder);
 
-	audio_pipeline_remove_listener(pipeline);
+	err = audio_pipeline_remove_listener(pipeline);
 
-	audio_event_iface_destroy(evt);
+	err = audio_event_iface_destroy(evt);
 
-	audio_pipeline_deinit(pipeline);
-	audio_element_deinit(http_stream_reader);
-	audio_element_deinit(i2s_stream_writer);
-	audio_element_deinit(mp3_decoder);
+	err = audio_pipeline_deinit(pipeline);
+	err = audio_element_deinit(http_stream_reader);
+	err = audio_element_deinit(i2s_stream_writer);
+	err = audio_element_deinit(mp3_decoder);
+
+	if (err != ESP_OK) {
+		ESP_LOGE(TAG, "Could not de-initialize; status code: %d", err);
+		ESP_ERROR_CHECK(err);
+	}
 
 	vTaskDelete(radio_task_handle);
 }
@@ -100,8 +106,18 @@ void channel_down() {
 	tune_radio(cur_chnl_idx);
 }
 
-void volume_up() { ESP_LOGW(TAG, "TODO"); }
-void volume_down() { ESP_LOGW(TAG, "TODO"); }
+void volume_up() {
+	player_volume += 10;
+	if (player_volume > 100) { player_volume = 100; }
+	ESP_LOGI(TAG, "Volume up");
+	audio_hal_set_volume(board_handle->audio_hal, player_volume);
+}
+void volume_down() {
+	player_volume -= 10;
+	if (player_volume < 0) { player_volume = 0; }
+	ESP_LOGI(TAG, "Volume down");
+	audio_hal_set_volume(board_handle->audio_hal, player_volume);
+}
 
 void tune_radio(unsigned int channel_idx) {
 	if (channel_idx >= sizeof(channels) / sizeof(radio_channel)) {
@@ -151,10 +167,9 @@ void start_radio_thread() {
 	ESP_ERROR_CHECK(esp_netif_init());
 	esp_periph_config_t periph_cfg     = DEFAULT_ESP_PERIPH_SET_CONFIG();
 	esp_periph_set_handle_t set_handle = esp_periph_set_init(&periph_cfg);
-	periph_wifi_cfg_t wifi_cfg = { .ssid = CONFIG_WIFI_SSID,
-		                           .password =
-		                               CONFIG_WIFI_PASS };
-	esp_periph_handle_t wifi_handle = periph_wifi_init(&wifi_cfg);
+	periph_wifi_cfg_t wifi_cfg         = { .ssid     = CONFIG_WIFI_SSID,
+		                                   .password = CONFIG_WIFI_PASS };
+	esp_periph_handle_t wifi_handle    = periph_wifi_init(&wifi_cfg);
 	esp_periph_start(set_handle, wifi_handle);
 	periph_wifi_wait_for_connected(wifi_handle, portMAX_DELAY);
 
@@ -189,7 +204,8 @@ void start_radio_thread() {
 	audio_pipeline_set_listener(pipeline, evt);
 
 	audio_board_key_init(set_handle);
-	audio_event_iface_set_listener(esp_periph_set_get_event_iface(set_handle), evt);
+	audio_event_iface_set_listener(esp_periph_set_get_event_iface(set_handle),
+	                               evt);
 
 	audio_pipeline_run(pipeline);
 	xTaskCreatePinnedToCore(radio_start, "radio_task", 20000, (void *)1, 10,
@@ -228,23 +244,22 @@ void radio_start(void *params) {
 			audio_pipeline_reset_ringbuffer(pipeline);
 			audio_pipeline_reset_items_state(pipeline);
 			audio_pipeline_run(pipeline);
-		} else if ((msg.source_type == PERIPH_ID_TOUCH || msg.source_type == PERIPH_ID_BUTTON) && (msg.cmd == PERIPH_TOUCH_TAP || msg.cmd == PERIPH_BUTTON_PRESSED)) {
+		} else if ((msg.source_type == PERIPH_ID_TOUCH ||
+		            msg.source_type == PERIPH_ID_BUTTON) &&
+		           (msg.cmd == PERIPH_TOUCH_TAP ||
+		            msg.cmd == PERIPH_BUTTON_PRESSED)) {
 			if ((int)msg.data == get_input_set_id()) {
 				ESP_LOGI(TAG, "Channel up");
 				channel_up();
 			} else if ((int)msg.data == get_input_volup_id()) {
 				ESP_LOGI(TAG, "Volume up");
 				player_volume += 10;
-				if (player_volume > 100) {
-					player_volume = 100;
-				}
+				if (player_volume > 100) { player_volume = 100; }
 				audio_hal_set_volume(board_handle->audio_hal, player_volume);
 			} else if ((int)msg.data == get_input_voldown_id()) {
 				ESP_LOGI(TAG, "Volume down");
 				player_volume -= 10;
-				if (player_volume < 0) {
-					player_volume = 0;
-				}
+				if (player_volume < 0) { player_volume = 0; }
 				audio_hal_set_volume(board_handle->audio_hal, player_volume);
 			}
 		}
