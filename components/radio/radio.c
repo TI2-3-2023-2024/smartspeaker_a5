@@ -21,6 +21,7 @@
 #include "periph_button.h"
 
 #include "radio.h"
+#include "led_volume_ding.h"
 
 typedef struct rc {
 	char *name;
@@ -120,7 +121,7 @@ void tune_radio(unsigned int channel_idx) {
 	audio_pipeline_reset_ringbuffer(pipeline);
 	audio_pipeline_reset_items_state(pipeline);
 
-	audio_element_set_uri(http_stream_reader, current_channel->url);
+	// audio_element_set_uri(http_stream_reader, current_channel->url);
 	audio_pipeline_run(pipeline);
 
 	audio_element_info_t music_info = { 0 };
@@ -169,7 +170,7 @@ void start_radio_thread() {
 	http_cfg.event_handle           = http_stream_event_handle;
 	http_cfg.enable_playlist_parser = true;
 	http_stream_reader              = http_stream_init(&http_cfg);
-	audio_element_set_uri(http_stream_reader, channels[cur_chnl_idx].url);
+	//audio_element_set_uri(http_stream_reader, channels[cur_chnl_idx].url);
 
 	mp3_decoder_cfg_t mp3_cfg = DEFAULT_MP3_DECODER_CONFIG();
 	mp3_decoder               = mp3_decoder_init(&mp3_cfg);
@@ -196,8 +197,25 @@ void start_radio_thread() {
 	                        &radio_task_handle, 1);
 }
 
+void set_leds_volume()
+{
+	float percentage = (float)player_volume / 100;
+
+	ESP_LOGI(TAG, "volume:%f", percentage);
+
+	int leds = (int)(percentage * 30 + 0.5);
+
+	ESP_LOGI(TAG, "led:%d", leds);
+
+	for(int i = 0; i < leds; i++)
+					{
+    	uint8_t message[] = {LED_ON, i, 100, 100, 100};
+		send_command(message, 5);
+	}
+}
+
 void radio_start(void *params) {
-	while (1) {
+	while (1) { 
 		audio_event_iface_msg_t msg;
 		esp_err_t ret = audio_event_iface_listen(evt, &msg, portMAX_DELAY);
 
@@ -238,6 +256,7 @@ void radio_start(void *params) {
 				if (player_volume > 100) {
 					player_volume = 100;
 				}
+				set_leds_volume();
 				audio_hal_set_volume(board_handle->audio_hal, player_volume);
 			} else if ((int)msg.data == get_input_voldown_id()) {
 				ESP_LOGI(TAG, "Volume down");
@@ -245,8 +264,10 @@ void radio_start(void *params) {
 				if (player_volume < 0) {
 					player_volume = 0;
 				}
+				set_leds_volume();
 				audio_hal_set_volume(board_handle->audio_hal, player_volume);
 			}
 		}
 	}
 }
+
