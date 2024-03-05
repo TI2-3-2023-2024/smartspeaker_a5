@@ -13,8 +13,14 @@
 static const char *TAG = "MAIN";
 static led_strip_t *strip;
 
+/**
+ * Enum for the LED commands
+*/
 enum led_effects { LED_OFF, LED_ON };
 
+/**
+ * Function for configuring the esp as a slave
+*/
 void config_slave(void) {
 	i2c_config_t conf_slave = { .sda_io_num          = 21,
 		                        .sda_pullup_en       = GPIO_PULLUP_ENABLE,
@@ -28,6 +34,9 @@ void config_slave(void) {
 	ESP_ERROR_CHECK(i2c_driver_install(I2C_NUM_0, I2C_MODE_SLAVE, 1024, 0, 0));
 }
 
+/**
+ * Function for configuring RMT protocol
+*/
 void config_led_rmt(void) {
 	rmt_config_t config = { .rmt_mode      = RMT_MODE_TX,
 		                    .channel       = RMT_CHANNEL_0,
@@ -45,18 +54,28 @@ void config_led_rmt(void) {
 	ESP_ERROR_CHECK(strip->clear(strip, 100));
 }
 
+/**
+ * Turns on LED's on the strip
+ * @param led is a specific led on the strip
+ * @param r is the red value
+ * @param g is the green value
+ * @param b is the blue value
+*/
 void led_on(uint8_t led, uint8_t r, uint8_t g, uint8_t b) {
 	ESP_ERROR_CHECK(strip->set_pixel(strip, led, r, g, b));
 	ESP_ERROR_CHECK(strip->refresh(strip, 100));
 }
 
+/**
+ * Turns off all LED's on the strip
+*/
 void led_off(void) { strip->clear(strip, 50); }
 
 void app_main(void) {
-	config_slave();
-	config_led_rmt();
+	config_slave();			//config the esp as the slave on i2c
+	config_led_rmt();		//config the rmt protocol
 
-	uint8_t buffer[BUFF_SIZE];
+	uint8_t buffer[BUFF_SIZE];		//buffer for reading i2c data
 	while (true) {
 		int len = i2c_slave_read_buffer(I2C_NUM_0, buffer, 1, portMAX_DELAY);
 		if (len < 0) {
