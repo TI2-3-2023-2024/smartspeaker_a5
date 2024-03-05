@@ -300,4 +300,8 @@ void run_radio(void *params) {
 
 		err = ESP_OK;
 	}
+
+	ESP_LOGI(TAG, "Radio stopped running, cleaning up");
+
+	radio_deinit();
 }
