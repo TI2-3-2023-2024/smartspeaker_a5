@@ -121,7 +121,7 @@ void tune_radio(unsigned int channel_idx) {
 	audio_pipeline_reset_ringbuffer(pipeline);
 	audio_pipeline_reset_items_state(pipeline);
 
-	// audio_element_set_uri(http_stream_reader, current_channel->url);
+	audio_element_set_uri(http_stream_reader, current_channel->url);
 	audio_pipeline_run(pipeline);
 
 	audio_element_info_t music_info = { 0 };
@@ -170,7 +170,7 @@ void start_radio_thread() {
 	http_cfg.event_handle           = http_stream_event_handle;
 	http_cfg.enable_playlist_parser = true;
 	http_stream_reader              = http_stream_init(&http_cfg);
-	//audio_element_set_uri(http_stream_reader, channels[cur_chnl_idx].url);
+	audio_element_set_uri(http_stream_reader, channels[cur_chnl_idx].url);
 
 	mp3_decoder_cfg_t mp3_cfg = DEFAULT_MP3_DECODER_CONFIG();
 	mp3_decoder               = mp3_decoder_init(&mp3_cfg);
@@ -207,8 +207,10 @@ void set_leds_volume()
 
 	ESP_LOGI(TAG, "led:%d", leds);
 
+	turn_off();
+
 	for(int i = 0; i < leds; i++)
-					{
+	{
     	uint8_t message[] = {LED_ON, i, 100, 100, 100};
 		send_command(message, 5);
 	}
