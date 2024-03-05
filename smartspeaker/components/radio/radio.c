@@ -5,6 +5,8 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 
+#include "board.h"
+
 #include "audio_common.h"
 #include "audio_element.h"
 #include "audio_event_iface.h"
@@ -27,10 +29,9 @@ static const char *TAG = "RADIO_COMPONENT";
 
 TaskHandle_t radio_task_handle = NULL;
 
-audio_board_handle_t board_handle;
+audio_board_handle_t *board_handle;
 audio_pipeline_handle_t pipeline;
 audio_element_handle_t i2s_stream_writer, mp3_decoder, http_stream_reader;
-audio_event_iface_handle_t evt;
 
 // Add more channels to your liking
 static const radio_channel channels[] = {
@@ -41,8 +42,6 @@ static const radio_channel channels[] = {
 };
 static int cur_chnl_idx = 0;
 int player_volume       = 0;
-
-void run_radio(void *params);
 
 /**
  * @brief  Event handler for HTTP stream responsible for handling track and playlist state.
@@ -61,10 +60,45 @@ esp_err_t http_stream_event_handle(http_stream_event_msg_t *msg) {
 	return ESP_OK;
 }
 
+esp_err_t radio_init(audio_board_handle_t *audio_board_handle,
+                      audio_event_iface_handle_t evt) {
+	board_handle = audio_board_handle;
+
+	// Initialize HTTP stream
+	http_stream_cfg_t http_cfg      = HTTP_STREAM_CFG_DEFAULT();
+	http_cfg.type                   = AUDIO_STREAM_READER;
+	http_cfg.event_handle           = http_stream_event_handle;
+	http_cfg.enable_playlist_parser = true;
+	http_stream_reader              = http_stream_init(&http_cfg);
+	ESP_RETURN_ON_ERROR(audio_element_set_uri(http_stream_reader, channels[cur_chnl_idx].url), TAG, "");
+
+	mp3_decoder_cfg_t mp3_cfg = DEFAULT_MP3_DECODER_CONFIG();
+	mp3_decoder               = mp3_decoder_init(&mp3_cfg);
+
+	i2s_stream_cfg_t i2s_cfg = I2S_STREAM_CFG_DEFAULT();
+	i2s_cfg.type             = AUDIO_STREAM_WRITER;
+	i2s_stream_writer        = i2s_stream_init(&i2s_cfg);
+
+	// Initialize audio pipeline
+	audio_pipeline_cfg_t pipeline_cfg = DEFAULT_AUDIO_PIPELINE_CONFIG();
+	pipeline                          = audio_pipeline_init(&pipeline_cfg);
+	ESP_RETURN_ON_ERROR(audio_pipeline_register(pipeline, http_stream_reader, "http"), TAG, "");
+	ESP_RETURN_ON_ERROR(audio_pipeline_register(pipeline, mp3_decoder, "mp3"), TAG, "");
+	ESP_RETURN_ON_ERROR(audio_pipeline_register(pipeline, i2s_stream_writer, "i2s"), TAG, "");
+	ESP_RETURN_ON_ERROR(audio_pipeline_link(pipeline, (const char *[]){ "http", "mp3", "i2s" }, 3), TAG, "");
+
+	// Set up audio event interface and subscribe to pipeline events
+	ESP_RETURN_ON_ERROR(audio_pipeline_set_listener(pipeline, evt), TAG, "");
+
+	ESP_RETURN_ON_ERROR(audio_pipeline_run(pipeline), TAG, "");
+
+	return ESP_OK;
+}
+
 /**
  * @brief Deinitialize the radio component and delete the radio task.
 */
-esp_err_t radio_deinit() {
+esp_err_t radio_deinit(audio_event_iface_handle_t evt) {
 	ESP_RETURN_ON_ERROR(audio_pipeline_stop(pipeline), TAG, "");
 	ESP_RETURN_ON_ERROR(audio_pipeline_wait_for_stop(pipeline), TAG, "");
 	ESP_RETURN_ON_ERROR(audio_pipeline_terminate(pipeline), TAG, "");
@@ -75,14 +109,9 @@ esp_err_t radio_deinit() {
 
 	ESP_RETURN_ON_ERROR(audio_pipeline_remove_listener(pipeline), TAG, "");
 
-	ESP_RETURN_ON_ERROR(audio_event_iface_destroy(evt), TAG, "");
-
 	ESP_RETURN_ON_ERROR(audio_pipeline_deinit(pipeline), TAG, "");
 	ESP_RETURN_ON_ERROR(audio_element_deinit(http_stream_reader), TAG, "");
-	ESP_RETURN_ON_ERROR(audio_element_deinit(i2s_stream_writer), TAG, "");
 	ESP_RETURN_ON_ERROR(audio_element_deinit(mp3_decoder), TAG, "");
-
-	vTaskDelete(radio_task_handle);
 
 	return ESP_OK;
 }
@@ -122,12 +151,12 @@ esp_err_t channel_down() {
 /**
  * @brief  Increase the volume of the radio.
 */
-esp_err_t volume_up() {
+esp_err_t volume_up(audio_board_handle_t *board_handle) {
 	ESP_LOGD(TAG, "Increasing volume");
 
 	player_volume += 10;
 	if (player_volume > 100) { player_volume = 100; }
-	ESP_RETURN_ON_ERROR(audio_hal_set_volume(board_handle->audio_hal, player_volume), TAG, "");
+	ESP_RETURN_ON_ERROR(audio_hal_set_volume((*board_handle)->audio_hal, player_volume), TAG, "");
 
 	return ESP_OK;
 }
@@ -135,12 +164,12 @@ esp_err_t volume_up() {
 /**
  * @brief  Decrease the volume of the radio.
 */
-esp_err_t volume_down() {
+esp_err_t volume_down(audio_board_handle_t *board_handle) {
 	ESP_LOGD(TAG, "Decreasing volume");
 
 	player_volume -= 10;
 	if (player_volume < 0) { player_volume = 0; }
-	ESP_RETURN_ON_ERROR(audio_hal_set_volume(board_handle->audio_hal, player_volume), TAG, "");
+	ESP_RETURN_ON_ERROR(audio_hal_set_volume((*board_handle)->audio_hal, player_volume), TAG, "");
 	
 	return ESP_OK;
 }
@@ -186,154 +215,86 @@ esp_err_t tune_radio(unsigned int channel_idx) {
 }
 
 /**
- * @brief	Initialize the radio configuration. Create a new audio pipeline and set up the audio elements (http -> mp3 decoder -> i2s writer). Set up audio event interface.
-*/
-esp_err_t start_radio_thread() {
-	esp_log_level_set("*", ESP_LOG_WARN);
-	esp_log_level_set(TAG, ESP_LOG_INFO);
-
-	// Initialize peripheral set
-	esp_periph_config_t periph_cfg     = DEFAULT_ESP_PERIPH_SET_CONFIG();
-	esp_periph_set_handle_t set_handle = esp_periph_set_init(&periph_cfg);
-
-	// Initialize board
-	board_handle = audio_board_init();
-	ESP_RETURN_ON_ERROR(audio_hal_ctrl_codec(board_handle->audio_hal, AUDIO_HAL_CODEC_MODE_DECODE,
-	                     AUDIO_HAL_CTRL_START), TAG, "");
-
-	ESP_RETURN_ON_ERROR(audio_hal_get_volume(board_handle->audio_hal, &player_volume), TAG, "");
-
-	// Initialize HTTP stream
-	http_stream_cfg_t http_cfg      = HTTP_STREAM_CFG_DEFAULT();
-	http_cfg.type                   = AUDIO_STREAM_READER;
-	http_cfg.event_handle           = http_stream_event_handle;
-	http_cfg.enable_playlist_parser = true;
-	http_stream_reader              = http_stream_init(&http_cfg);
-	ESP_RETURN_ON_ERROR(audio_element_set_uri(http_stream_reader, channels[cur_chnl_idx].url), TAG, "");
-
-	mp3_decoder_cfg_t mp3_cfg = DEFAULT_MP3_DECODER_CONFIG();
-	mp3_decoder               = mp3_decoder_init(&mp3_cfg);
-
-	i2s_stream_cfg_t i2s_cfg = I2S_STREAM_CFG_DEFAULT();
-	i2s_stream_writer        = i2s_stream_init(&i2s_cfg);
-
-	// Initialize audio pipeline
-	audio_pipeline_cfg_t pipeline_cfg = DEFAULT_AUDIO_PIPELINE_CONFIG();
-	pipeline                          = audio_pipeline_init(&pipeline_cfg);
-	ESP_RETURN_ON_ERROR(audio_pipeline_register(pipeline, http_stream_reader, "http"), TAG, "");
-	ESP_RETURN_ON_ERROR(audio_pipeline_register(pipeline, mp3_decoder, "mp3"), TAG, "");
-	ESP_RETURN_ON_ERROR(audio_pipeline_register(pipeline, i2s_stream_writer, "i2s"), TAG, "");
-	ESP_RETURN_ON_ERROR(audio_pipeline_link(pipeline, (const char *[]){ "http", "mp3", "i2s" }, 3), TAG, "");
-
-	// Set up audio event interface and subscribe to onboard touch buttons and pipeline events
-	audio_event_iface_cfg_t evt_cfg = AUDIO_EVENT_IFACE_DEFAULT_CFG();
-	evt                             = audio_event_iface_init(&evt_cfg);
-	ESP_RETURN_ON_ERROR(audio_pipeline_set_listener(pipeline, evt), TAG, "");
-
-	ESP_RETURN_ON_ERROR(audio_board_key_init(set_handle), TAG, "");
-	ESP_RETURN_ON_ERROR(audio_event_iface_set_listener(esp_periph_set_get_event_iface(set_handle),
-	                               evt), TAG, "");
-
-	ESP_RETURN_ON_ERROR(audio_pipeline_run(pipeline), TAG, "");
-
-	// TODO consider changing stack depth and priority
-	xTaskCreatePinnedToCore(run_radio, "radio_task", 20000, (void *)1, 10,
-	                        &radio_task_handle, 1);
-
-	return ESP_OK;
-}
-
-/**
  * @brief  Listen for radio events and user input and handle them.
 */
-void run_radio(void *params) {
-	esp_err_t err;
+esp_err_t radio_run(audio_event_iface_msg_t *msg) {
+	esp_err_t err = ESP_OK;
 
-	while (1) {
-		audio_event_iface_msg_t msg;
-		err = audio_event_iface_listen(evt, &msg, portMAX_DELAY);
+	if (err != ESP_OK) {
+		ESP_LOGE(TAG, "Event interface error (err=%d)", err);
+		return err;
+	} else if (msg->source_type == AUDIO_ELEMENT_TYPE_ELEMENT &&
+				msg->source == (void *)mp3_decoder &&
+				msg->cmd == AEL_MSG_CMD_REPORT_MUSIC_INFO) {
+		audio_element_info_t music_info = { 0 };
+		err = audio_element_getinfo(mp3_decoder, &music_info);
 
 		if (err != ESP_OK) {
-			ESP_LOGE(TAG, "Event interface error (err=%d)", err);
-			break;
-		} else if (msg.source_type == AUDIO_ELEMENT_TYPE_ELEMENT &&
-		           msg.source == (void *)mp3_decoder &&
-		           msg.cmd == AEL_MSG_CMD_REPORT_MUSIC_INFO) {
-			audio_element_info_t music_info = { 0 };
-			err = audio_element_getinfo(mp3_decoder, &music_info);
-
-			if (err != ESP_OK) {
-				ESP_LOGE(TAG, "Could not get audio info (err=%d)", err);
-				continue;
-			}
-
-			ESP_LOGI(
-			    TAG, "Received music info, sample_rates=%d, bits=%d, ch=%d",
-			    music_info.sample_rates, music_info.bits, music_info.channels);
-
-			err = i2s_stream_set_clk(i2s_stream_writer, music_info.sample_rates,
-			                   music_info.bits, music_info.channels);
-
-			if (err != ESP_OK) {
-				ESP_LOGE(TAG, "Could not set I2S clock (err=%d)", err);
-				continue;
-			}
-		} else if (msg.source_type == AUDIO_ELEMENT_TYPE_ELEMENT &&
-		           msg.source == (void *)http_stream_reader &&
-		           msg.cmd == AEL_MSG_CMD_REPORT_STATUS &&
-		           (int)msg.data == AEL_STATUS_ERROR_OPEN) {
-			ESP_LOGW(TAG, "Failed to open the file, restarting stream");
-
-			ESP_ERROR_CHECK_WITHOUT_ABORT(audio_pipeline_stop(pipeline));
-			ESP_ERROR_CHECK_WITHOUT_ABORT(audio_pipeline_wait_for_stop(pipeline));
-			ESP_ERROR_CHECK_WITHOUT_ABORT(audio_element_reset_state(mp3_decoder));
-			ESP_ERROR_CHECK_WITHOUT_ABORT(audio_element_reset_state(i2s_stream_writer));
-			ESP_ERROR_CHECK_WITHOUT_ABORT(audio_pipeline_reset_ringbuffer(pipeline));
-			ESP_ERROR_CHECK_WITHOUT_ABORT(audio_pipeline_reset_items_state(pipeline));
-			ESP_ERROR_CHECK_WITHOUT_ABORT(audio_pipeline_run(pipeline));
-		} else if ((msg.source_type == PERIPH_ID_TOUCH ||
-		            msg.source_type == PERIPH_ID_BUTTON) &&
-		           (msg.cmd == PERIPH_TOUCH_TAP ||
-		            msg.cmd == PERIPH_BUTTON_PRESSED)) {
-			// Logic for onboard touch buttons
-
-			// Set button
-			if ((int)msg.data == get_input_set_id()) {
-				ESP_LOGI(TAG, "Changing channel");
-				err = channel_up();
-				
-				if (err != ESP_OK) {
-					ESP_LOGE(TAG, "Failed to change channel (err=%d)", err);
-				}
-
-			// Vol+ button
-			} else if ((int)msg.data == get_input_volup_id()) {
-				ESP_LOGI(TAG, "Increasing volume");
-				player_volume += 10;
-				if (player_volume > 100) { player_volume = 100; }
-				
-				err = audio_hal_set_volume(board_handle->audio_hal, player_volume);
-				if (err != ESP_OK) {
-					ESP_LOGE(TAG, "Failed to increase volume (err=%d)", err);
-				}
-			
-			// Vol- button
-			} else if ((int)msg.data == get_input_voldown_id()) {
-				ESP_LOGI(TAG, "Decreasing volume");
-				player_volume -= 10;
-				if (player_volume < 0) { player_volume = 0; }
-
-				err = audio_hal_set_volume(board_handle->audio_hal, player_volume);
-				if (err != ESP_OK) {
-					ESP_LOGE(TAG, "Failed to decrease volume (err=%d)", err);
-				}
-			}
+			ESP_LOGE(TAG, "Could not get audio info (err=%d)", err);
+			return err;
 		}
 
-		err = ESP_OK;
+		ESP_LOGI(
+			TAG, "Received music info, sample_rates=%d, bits=%d, ch=%d",
+			music_info.sample_rates, music_info.bits, music_info.channels);
+
+		err = i2s_stream_set_clk(i2s_stream_writer, music_info.sample_rates,
+							music_info.bits, music_info.channels);
+
+		if (err != ESP_OK) {
+			ESP_LOGE(TAG, "Could not set I2S clock (err=%d)", err);
+			return err;
+		}
+	} else if (msg->source_type == AUDIO_ELEMENT_TYPE_ELEMENT &&
+				msg->source == (void *)http_stream_reader &&
+				msg->cmd == AEL_MSG_CMD_REPORT_STATUS &&
+				(int)msg->data == AEL_STATUS_ERROR_OPEN) {
+		ESP_LOGW(TAG, "Failed to open the file, restarting stream");
+
+		ESP_ERROR_CHECK_WITHOUT_ABORT(audio_pipeline_stop(pipeline));
+		ESP_ERROR_CHECK_WITHOUT_ABORT(audio_pipeline_wait_for_stop(pipeline));
+		ESP_ERROR_CHECK_WITHOUT_ABORT(audio_element_reset_state(mp3_decoder));
+		ESP_ERROR_CHECK_WITHOUT_ABORT(audio_element_reset_state(i2s_stream_writer));
+		ESP_ERROR_CHECK_WITHOUT_ABORT(audio_pipeline_reset_ringbuffer(pipeline));
+		ESP_ERROR_CHECK_WITHOUT_ABORT(audio_pipeline_reset_items_state(pipeline));
+		ESP_ERROR_CHECK_WITHOUT_ABORT(audio_pipeline_run(pipeline));
+	} else if ((msg->source_type == PERIPH_ID_TOUCH ||
+				msg->source_type == PERIPH_ID_BUTTON) &&
+				(msg->cmd == PERIPH_TOUCH_TAP ||
+				msg->cmd == PERIPH_BUTTON_PRESSED)) {
+		// Logic for onboard touch buttons
+
+		// Set button
+		if ((int)msg->data == get_input_set_id()) {
+			ESP_LOGI(TAG, "Changing channel");
+			err = channel_up();
+			
+			if (err != ESP_OK) {
+				ESP_LOGE(TAG, "Failed to change channel (err=%d)", err);
+			}
+
+		// Vol+ button
+		} else if ((int)msg->data == get_input_volup_id()) {
+			ESP_LOGI(TAG, "Increasing volume");
+			player_volume += 10;
+			if (player_volume > 100) { player_volume = 100; }
+			
+			err = audio_hal_set_volume((*board_handle)->audio_hal, player_volume);
+			if (err != ESP_OK) {
+				ESP_LOGE(TAG, "Failed to increase volume (err=%d)", err);
+			}
+		
+		// Vol- button
+		} else if ((int)msg->data == get_input_voldown_id()) {
+			ESP_LOGI(TAG, "Decreasing volume");
+			player_volume -= 10;
+			if (player_volume < 0) { player_volume = 0; }
+
+			err = audio_hal_set_volume((*board_handle)->audio_hal, player_volume);
+			if (err != ESP_OK) {
+				ESP_LOGE(TAG, "Failed to decrease volume (err=%d)", err);
+			}
+		}
 	}
-
-	ESP_LOGI(TAG, "Radio stopped running, cleaning up");
-
-	radio_deinit();
+	return ESP_OK;
 }
