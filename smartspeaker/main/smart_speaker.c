@@ -1,4 +1,5 @@
 #include "bt_sink.h"
+#include "led_volume_ding.h"
 #include "wifi.h"
 #include "radio.h"
 
@@ -39,6 +40,7 @@ static audio_event_iface_handle_t evt;
 typedef esp_err_t(audio_init_fn)(audio_board_handle_t *, audio_event_iface_handle_t);
 typedef esp_err_t(audio_deinit_fn)(audio_event_iface_handle_t);
 typedef esp_err_t(audio_run_fn)(audio_event_iface_msg_t *);
+int player_volume = 0;
 
 static void app_init(void) {
 	esp_log_level_set("*", ESP_LOG_INFO);
@@ -175,6 +177,36 @@ void app_main(void) {
 			continue;
 		}
 
+
+		if ((msg.source_type == PERIPH_ID_TOUCH ||
+		     msg.source_type == PERIPH_ID_BUTTON ||
+		     msg.source_type == PERIPH_ID_ADC_BTN) &&
+		    (msg.cmd == PERIPH_TOUCH_TAP || msg.cmd == PERIPH_BUTTON_PRESSED ||
+		     msg.cmd == PERIPH_ADC_BUTTON_PRESSED)) {
+
+			if ((int)msg.data == get_input_play_id()) {
+				ESP_LOGI(TAG, "[ * ] [Play] touch tap event");
+			} else if ((int)msg.data == get_input_set_id()) {
+				ESP_LOGI(TAG, "[ * ] [Set] touch tap event");
+			} else if ((int)msg.data == get_input_volup_id()) {
+				ESP_LOGI(TAG, "[ * ] [Vol+] touch tap event");
+				player_volume += 10;
+				if (player_volume > 100)
+				{
+					player_volume = 100;
+				}
+				set_leds_volume();
+				audio_hal_set_volume(board_handle->audio_hal, player_volume);
+			} else if ((int)msg.data == get_input_voldown_id()) {
+				ESP_LOGI(TAG, "[ * ] [Vol-] touch tap event");
+				player_volume -= 10;
+				if (player_volume > 100)
+				{
+					player_volume = 100;
+				}
+				set_leds_volume();
+				audio_hal_set_volume(board_handle->audio_hal, player_volume);
+			}
 		err = pipeline_run(radio_run, &msg);
 		if (err != ESP_OK) {
 			ESP_LOGE(TAG, "Radio handler failed (err=%d) %s", err, esp_err_to_name(err));
