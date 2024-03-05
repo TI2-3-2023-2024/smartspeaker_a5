@@ -1,4 +1,5 @@
 #include "bt_sink.h"
+#include "wifi.h"
 
 #include "audio_event_iface.h"
 #include "board.h"
@@ -71,6 +72,10 @@ static void app_init(void) {
 	/* Initialise Bluetooth sink component. */
 	ESP_LOGI(TAG, "Initialise Bluetooth sink");
 	bt_sink_init(periph_set);
+
+	/* Initialise WI-Fi component */
+	ESP_LOGI(TAG, "Initialise WI-FI");
+	wifi_init();
 }
 
 static void app_free(void) {
