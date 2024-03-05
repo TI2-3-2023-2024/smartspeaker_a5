@@ -1,5 +1,6 @@
 #include "bt_sink.h"
 #include "wifi.h"
+#include "radio.h"
 
 #include "audio_event_iface.h"
 #include "board.h"
