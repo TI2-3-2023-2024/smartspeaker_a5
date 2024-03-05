@@ -1,5 +1,5 @@
 #include "bt_sink.h"
-#include "led_volume_ding.h"
+#include "led_controller_commands.h"
 #include "wifi.h"
 #include "radio.h"
 
@@ -28,8 +28,6 @@
 #include <stdio.h>
 
 #define ARRAY_SIZE(a) ((sizeof a) / (sizeof a[0]))
-
-enum led_effects { LED_OFF, LED_ON };
 
 static const char *TAG = "MAIN";
 
@@ -154,6 +152,20 @@ void turn_off(void) {
 	send_command(message, ARRAY_SIZE(message));
 }
 
+void set_leds_volume() {
+	float percentage = (float)player_volume / 100;
+	ESP_LOGI(TAG, "Volume: %f", percentage);
+	int leds = (int)(percentage * 30 + 0.5);
+	ESP_LOGI(TAG, "LED's: %d", leds);
+
+	turn_off();
+
+	for (int i = 0; i < leds; i++) {
+		uint8_t message[] = { LED_ON, i, 100, 100, 100 };
+		send_command(message, 5);
+	}
+}
+
 void app_main(void) {
 	app_init();
 
@@ -164,6 +176,10 @@ void app_main(void) {
 		ESP_LOGE(TAG, "Failed to start radio thread (err=%d) %s", err, esp_err_to_name(err));
 		return;
 	}
+
+	player_volume = 50;
+	set_leds_volume();
+	audio_hal_set_volume(board_handle->audio_hal, player_volume);
 
 	/* Main eventloop */
 	ESP_LOGI(TAG, "Entering main eventloop");
@@ -191,19 +207,13 @@ void app_main(void) {
 			} else if ((int)msg.data == get_input_volup_id()) {
 				ESP_LOGI(TAG, "[ * ] [Vol+] touch tap event");
 				player_volume += 10;
-				if (player_volume > 100)
-				{
-					player_volume = 100;
-				}
+				if (player_volume > 100) { player_volume = 100; }
 				set_leds_volume();
 				audio_hal_set_volume(board_handle->audio_hal, player_volume);
 			} else if ((int)msg.data == get_input_voldown_id()) {
 				ESP_LOGI(TAG, "[ * ] [Vol-] touch tap event");
 				player_volume -= 10;
-				if (player_volume > 100)
-				{
-					player_volume = 100;
-				}
+				if (player_volume > 100) { player_volume = 100; }
 				set_leds_volume();
 				audio_hal_set_volume(board_handle->audio_hal, player_volume);
 			}
@@ -220,16 +230,4 @@ void app_main(void) {
 	}
 
 	app_free();
-
-	// CODE FOR SENDING COMMANDS TO LEDCONTROLLER
-
-	// config_master();
-
-	// while(true)
-	// {
-	//     turn_on_white_delay();
-	//     vTaskDelay(50/portTICK_PERIOD_MS);
-	//     turn_off();
-	//     vTaskDelay(1000/portTICK_PERIOD_MS);
-	// }
 }

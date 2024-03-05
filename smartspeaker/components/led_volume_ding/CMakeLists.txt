@@ -1,3 +1,3 @@
-idf_component_register(SRCS "led_volume_ding.c"
+idf_component_register(SRCS "led_controller_commands.c"
                     INCLUDE_DIRS "include"
                     REQUIRES main)
