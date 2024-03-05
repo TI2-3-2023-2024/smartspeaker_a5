@@ -22,12 +22,6 @@
 #include "esp_err.h"
 #include "esp_log.h"
 
-#include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
-
-#include <stdbool.h>
-#include <stdio.h>
-
 #define ARRAY_SIZE(a) ((sizeof a) / (sizeof a[0]))
 
 static const char *TAG = "MAIN";
@@ -141,7 +135,7 @@ void app_main(void) {
 	}
 
 	player_volume = 50;
-	set_leds_volume(player_volume);
+	led_controller_set_leds_volume(player_volume);
 	audio_hal_set_volume(board_handle->audio_hal, player_volume);
 
 	/* Main eventloop */
@@ -167,24 +161,28 @@ void app_main(void) {
 				ESP_LOGI(TAG, "[ * ] [Play] touch tap event");
 			} else if ((int)msg.data == get_input_set_id()) {
 				ESP_LOGI(TAG, "[ * ] [Set] touch tap event");
-				use_led_strip = !use_led_strip;
-				if (!use_led_strip) {
-					turn_off();
+				if (use_led_strip == 1) {
+					led_controller_turn_off();
+					use_led_strip = 0;
 				} else {
-					set_leds_volume(player_volume);
+					led_controller_set_leds_volume(player_volume);
+					use_led_strip = 1;
 				}
 			} else if ((int)msg.data == get_input_volup_id()) {
 				ESP_LOGI(TAG, "[ * ] [Vol+] touch tap event");
 				player_volume += 10;
 				if (player_volume > 100) { player_volume = 100; }
-				if (use_led_strip) { set_leds_volume(player_volume); }
-				set_leds_volume(player_volume);
+				if (use_led_strip == 1) {
+					led_controller_set_leds_volume(player_volume);
+				}
 				audio_hal_set_volume(board_handle->audio_hal, player_volume);
 			} else if ((int)msg.data == get_input_voldown_id()) {
 				ESP_LOGI(TAG, "[ * ] [Vol-] touch tap event");
 				player_volume -= 10;
-				if (player_volume > 100) { player_volume = 100; }
-				if (use_led_strip) { set_leds_volume(player_volume); }
+				if (player_volume < 0) { player_volume = 0; }
+				if (use_led_strip == 1) {
+					led_controller_set_leds_volume(player_volume);
+				}
 				audio_hal_set_volume(board_handle->audio_hal, player_volume);
 			}
 		err = pipeline_run(radio_run, &msg);
