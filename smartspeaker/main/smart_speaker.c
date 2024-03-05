@@ -34,7 +34,7 @@ static esp_periph_set_handle_t periph_set;
 static audio_event_iface_handle_t evt;
 static audio_element_handle_t i2s_stream_writer;
 
-int player_volume = 0;
+static int player_volume = 0;
 
 typedef void(audio_init_fn)(audio_element_handle_t, audio_event_iface_handle_t);
 typedef void(audio_deinit_fn)(audio_element_handle_t,
@@ -119,26 +119,12 @@ static void pipeline_destroy(audio_deinit_fn deinit_fn,
 	deinit_fn(output_stream_writer, evt);
 }
 
-void set_leds_volume() {
-	float percentage = (float)player_volume / 100;
-	ESP_LOGI(TAG, "Volume: %f", percentage);
-	int leds = (int)(percentage * 30 + 0.5);
-	ESP_LOGI(TAG, "LED's: %d", leds);
-
-	turn_off();
-
-	for (int i = 0; i < leds; i++) {
-		uint8_t message[] = { LED_ON, i, 100, 100, 100 };
-		send_command(message, 5);
-	}
-}
-
 void app_main(void) {
 	app_init();
 	pipeline_init(bt_pipeline_init, i2s_stream_writer);
 
 	player_volume = 50;
-	set_leds_volume();
+	set_leds_volume(player_volume);
 	audio_hal_set_volume(board_handle->audio_hal, player_volume);
 
 	/* Main eventloop */
@@ -169,13 +155,13 @@ void app_main(void) {
 				ESP_LOGI(TAG, "[ * ] [Vol+] touch tap event");
 				player_volume += 10;
 				if (player_volume > 100) { player_volume = 100; }
-				set_leds_volume();
+				set_leds_volume(player_volume);
 				audio_hal_set_volume(board_handle->audio_hal, player_volume);
 			} else if ((int)msg.data == get_input_voldown_id()) {
 				ESP_LOGI(TAG, "[ * ] [Vol-] touch tap event");
 				player_volume -= 10;
 				if (player_volume > 100) { player_volume = 100; }
-				set_leds_volume();
+				set_leds_volume(player_volume);
 				audio_hal_set_volume(board_handle->audio_hal, player_volume);
 			}
 		}

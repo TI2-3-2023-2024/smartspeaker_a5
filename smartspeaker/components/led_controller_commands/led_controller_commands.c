@@ -1,8 +1,11 @@
 #include "led_controller_commands.h"
 #include <driver/i2c.h>
 #include <stdio.h>
+#include "esp_log.h"
 
 #define ARRAY_SIZE(a) ((sizeof a) / (sizeof a[0]))
+
+static const char *TAG = "led_controller_commands";
 
 void config_master(void) {
 	i2c_config_t conf_master = {
@@ -40,4 +43,18 @@ void turn_on_white_delay(void) {
 void turn_off(void) {
 	uint8_t message[] = { LED_OFF };
 	send_command(message, ARRAY_SIZE(message));
+}
+
+void set_leds_volume(int player_volume) {
+	float percentage = (float)player_volume / 100;
+	ESP_LOGI(TAG, "Volume: %f", percentage);
+	int leds = (int)(percentage * 30 + 0.5);
+	ESP_LOGI(TAG, "LED's: %d", leds);
+
+	turn_off();
+
+	for (int i = 0; i < leds; i++) {
+		uint8_t message[] = { LED_ON, i, 100, 100, 100 };
+		send_command(message, 5);
+	}
 }
