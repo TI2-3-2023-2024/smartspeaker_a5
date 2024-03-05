@@ -38,7 +38,7 @@ static audio_event_iface_handle_t evt;
 typedef esp_err_t(audio_init_fn)(audio_board_handle_t *, audio_event_iface_handle_t);
 typedef esp_err_t(audio_deinit_fn)(audio_event_iface_handle_t);
 typedef esp_err_t(audio_run_fn)(audio_event_iface_msg_t *);
-int player_volume = 0;
+static int player_volume = 0;
 
 static void app_init(void) {
 	esp_log_level_set("*", ESP_LOG_INFO);
@@ -140,7 +140,7 @@ void app_main(void) {
 	}
 
 	player_volume = 50;
-	set_leds_volume();
+	set_leds_volume(player_volume);
 	audio_hal_set_volume(board_handle->audio_hal, player_volume);
 
 	/* Main eventloop */
@@ -170,13 +170,13 @@ void app_main(void) {
 				ESP_LOGI(TAG, "[ * ] [Vol+] touch tap event");
 				player_volume += 10;
 				if (player_volume > 100) { player_volume = 100; }
-				set_leds_volume();
+				set_leds_volume(player_volume);
 				audio_hal_set_volume(board_handle->audio_hal, player_volume);
 			} else if ((int)msg.data == get_input_voldown_id()) {
 				ESP_LOGI(TAG, "[ * ] [Vol-] touch tap event");
 				player_volume -= 10;
 				if (player_volume > 100) { player_volume = 100; }
-				set_leds_volume();
+				set_leds_volume(player_volume);
 				audio_hal_set_volume(board_handle->audio_hal, player_volume);
 			}
 		err = pipeline_run(radio_run, &msg);
