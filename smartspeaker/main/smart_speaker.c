@@ -112,6 +112,13 @@ void app_main(void) {
 	app_init();
 	pipeline_init(bt_pipeline_init, i2s_stream_writer);
 
+	esp_err_t err = start_radio_thread();
+
+	if (err != ESP_OK) {
+		ESP_LOGE(TAG, "Failed to start radio thread (err=%d)", err);
+		return;
+	}
+
 	/* Main eventloop */
 	ESP_LOGI(TAG, "Entering main eventloop");
 	for (;;) {
