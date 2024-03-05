@@ -1,11 +1,13 @@
 #include "led_controller_commands.h"
-#include <driver/i2c.h>
-#include <stdio.h>
 #include "esp_log.h"
+#include <driver/i2c.h>
+#include <stdbool.h>
+#include <stdio.h>
 
 #define ARRAY_SIZE(a) ((sizeof a) / (sizeof a[0]))
 
-static const char *TAG = "led_controller_commands";
+static const char *TAG    = "led_controller_commands";
+static bool use_led_strip = false;
 
 void config_master(void) {
 	i2c_config_t conf_master = {
@@ -54,7 +56,12 @@ void set_leds_volume(int player_volume) {
 	turn_off();
 
 	for (int i = 0; i < leds; i++) {
-		uint8_t message[] = { LED_ON, i, 100, 100, 100 };
-		send_command(message, 5);
+		if (use_led_strip) {
+			uint8_t message[] = { LED_ON, i, 100, 100, 100 };
+			send_command(message, ARRAY_SIZE(message));
+		} else {
+			uint8_t message[] = { LED_ON, i, 0, 0, 0 };
+			send_command(message, ARRAY_SIZE(message));
+		}
 	}
 }

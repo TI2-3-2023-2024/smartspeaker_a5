@@ -23,6 +23,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 
+#include <stdbool.h>
 #include <stdio.h>
 
 #define ARRAY_SIZE(a) ((sizeof a) / (sizeof a[0]))
@@ -34,7 +35,8 @@ static esp_periph_set_handle_t periph_set;
 static audio_event_iface_handle_t evt;
 static audio_element_handle_t i2s_stream_writer;
 
-static int player_volume = 0;
+static int player_volume  = 0;
+static bool use_led_strip = false;
 
 typedef void(audio_init_fn)(audio_element_handle_t, audio_event_iface_handle_t);
 typedef void(audio_deinit_fn)(audio_element_handle_t,
@@ -151,17 +153,24 @@ void app_main(void) {
 				ESP_LOGI(TAG, "[ * ] [Play] touch tap event");
 			} else if ((int)msg.data == get_input_set_id()) {
 				ESP_LOGI(TAG, "[ * ] [Set] touch tap event");
+				use_led_strip = !use_led_strip;
+				if (!use_led_strip) {
+					turn_off();
+				} else {
+					set_leds_volume(player_volume);
+				}
 			} else if ((int)msg.data == get_input_volup_id()) {
 				ESP_LOGI(TAG, "[ * ] [Vol+] touch tap event");
 				player_volume += 10;
 				if (player_volume > 100) { player_volume = 100; }
+				if (use_led_strip) { set_leds_volume(player_volume); }
 				set_leds_volume(player_volume);
 				audio_hal_set_volume(board_handle->audio_hal, player_volume);
 			} else if ((int)msg.data == get_input_voldown_id()) {
 				ESP_LOGI(TAG, "[ * ] [Vol-] touch tap event");
 				player_volume -= 10;
 				if (player_volume > 100) { player_volume = 100; }
-				set_leds_volume(player_volume);
+				if (use_led_strip) { set_leds_volume(player_volume); }
 				audio_hal_set_volume(board_handle->audio_hal, player_volume);
 			}
 		}
