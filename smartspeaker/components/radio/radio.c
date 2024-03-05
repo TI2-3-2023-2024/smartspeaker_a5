@@ -1,14 +1,9 @@
-#include <stdbool.h>
 #include <stdio.h>
 
 #include "esp_log.h"
 #include "esp_check.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
-
-#include "esp_wifi.h"
-#include "nvs_flash.h"
-#include "periph_wifi.h"
 
 #include "audio_common.h"
 #include "audio_element.h"
@@ -197,32 +192,18 @@ esp_err_t start_radio_thread() {
 	esp_log_level_set("*", ESP_LOG_WARN);
 	esp_log_level_set(TAG, ESP_LOG_INFO);
 
-	esp_err_t err = nvs_flash_init();
-	if (err == ESP_ERR_NVS_NO_FREE_PAGES) {
-		// NVS partition was truncated and needs to be erased
-		// Retry nvs_flash_init
-		ESP_RETURN_ON_ERROR(nvs_flash_erase(), TAG, "");
-		err = nvs_flash_init();
-	}
-	ESP_RETURN_ON_ERROR(err, TAG, "");
-
-	ESP_RETURN_ON_ERROR(esp_netif_init(), TAG, "");
+	// Initialize peripheral set
 	esp_periph_config_t periph_cfg     = DEFAULT_ESP_PERIPH_SET_CONFIG();
 	esp_periph_set_handle_t set_handle = esp_periph_set_init(&periph_cfg);
-	periph_wifi_cfg_t wifi_cfg         = { .ssid     = CONFIG_WIFI_SSID,
-		                                   .password = CONFIG_WIFI_PASS };
-	esp_periph_handle_t wifi_handle    = periph_wifi_init(&wifi_cfg);
-	ESP_RETURN_ON_ERROR(esp_periph_start(set_handle, wifi_handle), TAG, "");
-	ESP_RETURN_ON_ERROR(periph_wifi_wait_for_connected(wifi_handle, portMAX_DELAY), TAG, "");
 
-	// Init board
+	// Initialize board
 	board_handle = audio_board_init();
 	ESP_RETURN_ON_ERROR(audio_hal_ctrl_codec(board_handle->audio_hal, AUDIO_HAL_CODEC_MODE_DECODE,
 	                     AUDIO_HAL_CTRL_START), TAG, "");
 
 	ESP_RETURN_ON_ERROR(audio_hal_get_volume(board_handle->audio_hal, &player_volume), TAG, "");
 
-	// Init HTTP stream
+	// Initialize HTTP stream
 	http_stream_cfg_t http_cfg      = HTTP_STREAM_CFG_DEFAULT();
 	http_cfg.type                   = AUDIO_STREAM_READER;
 	http_cfg.event_handle           = http_stream_event_handle;
@@ -236,7 +217,7 @@ esp_err_t start_radio_thread() {
 	i2s_stream_cfg_t i2s_cfg = I2S_STREAM_CFG_DEFAULT();
 	i2s_stream_writer        = i2s_stream_init(&i2s_cfg);
 
-	// Init audio pipeline
+	// Initialize audio pipeline
 	audio_pipeline_cfg_t pipeline_cfg = DEFAULT_AUDIO_PIPELINE_CONFIG();
 	pipeline                          = audio_pipeline_init(&pipeline_cfg);
 	ESP_RETURN_ON_ERROR(audio_pipeline_register(pipeline, http_stream_reader, "http"), TAG, "");
