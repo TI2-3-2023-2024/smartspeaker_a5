@@ -36,7 +36,7 @@ typedef esp_err_t(audio_init_fn)(audio_element_handle_t,
 typedef esp_err_t(audio_deinit_fn)(audio_element_handle_t, audio_event_iface_handle_t);
 typedef esp_err_t(audio_run_fn)(audio_event_iface_msg_t *);
 static int player_volume = 0;
-static int use_led_strip = 1;
+// static int use_led_strip = 1;
 static int use_radio     = 1;
 
 static void app_init(void) {
@@ -197,13 +197,13 @@ void app_main(void) {
 				ESP_LOGI(TAG, "[ * ] [Play] touch tap event");
 			} else if ((int)msg.data == get_input_set_id()) {
 				ESP_LOGI(TAG, "[ * ] [Set] touch tap event");
-				if (use_led_strip == 1) {
-					led_controller_turn_off();
-					use_led_strip = 0;
-				} else {
-					led_controller_set_leds_volume(player_volume);
-					use_led_strip = 1;
-				}
+				// if (use_led_strip == 1) {
+				// 	led_controller_turn_off();
+				// 	use_led_strip = 0;
+				// } else {
+				// 	led_controller_set_leds_volume(player_volume);
+				// 	use_led_strip = 1;
+				// }
 			} else if ((int)msg.data == get_input_volup_id()) {
 				ESP_LOGI(TAG, "[ * ] [Vol+] touch tap event");
 				player_volume += 10;
