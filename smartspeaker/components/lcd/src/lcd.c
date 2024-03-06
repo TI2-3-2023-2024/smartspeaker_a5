@@ -11,6 +11,8 @@
 #include "i2c-lcd1602.h"
 #include "smbus.h"
 
+#include "esp_check.h"
+#include "esp_err.h"
 #include "esp_log.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -29,7 +31,7 @@
 #define MCP23017_IODIRA 0x00 // Register address for I/O direction, port A
 
 static i2c_lcd1602_info_t *lcd_info;
-static const char *lcdTag = "LCD";
+static const char *TAG = "LCD";
 
 /**
  * @brief Sets up the mcp23017 so it can read the inputs on the pins.
@@ -90,20 +92,21 @@ esp_err_t lcd_init(void) {
 
 	// Set up the SMBus
 	smbus_info_t *smbus_info = smbus_malloc();
-	ESP_ERROR_CHECK(smbus_init(smbus_info, i2c_num, address));
-	ESP_ERROR_CHECK(smbus_set_timeout(smbus_info, 1000 / portTICK_RATE_MS));
+	ESP_RETURN_ON_ERROR(smbus_init(smbus_info, i2c_num, address), TAG, "");
+	ESP_RETURN_ON_ERROR(smbus_set_timeout(smbus_info, 1000 / portTICK_RATE_MS),
+	                    TAG, "");
 
 	// Set up the LCD1602 device with backlight off
 	lcd_info = i2c_lcd1602_malloc();
-	ESP_ERROR_CHECK(i2c_lcd1602_init(
-	    lcd_info, smbus_info, true, CONFIG_LCD_NUM_ROWS, CONFIG_LCD_NUM_COLUMNS,
-	    CONFIG_LCD_NUM_VISIBLE_COLUMNS));
+	ESP_RETURN_ON_ERROR(i2c_lcd1602_init(lcd_info, smbus_info, true,
+	                                     CONFIG_LCD_NUM_ROWS, CONFIG_LCD_NUM_COLUMNS,
+	                                     CONFIG_LCD_NUM_VISIBLE_COLUMNS),
+	                    TAG, "");
 
-	ESP_ERROR_CHECK(i2c_lcd1602_reset(lcd_info));
+	ESP_RETURN_ON_ERROR(i2c_lcd1602_reset(lcd_info), TAG, "");
 
 	// turn on backlight
-	ESP_LOGI(lcdTag, "backlight on");
-	i2c_lcd1602_set_backlight(lcd_info, true);
+	ESP_RETURN_ON_ERROR(i2c_lcd1602_set_backlight(lcd_info, true), TAG, "");
 
 	return ESP_OK;
 }
@@ -112,7 +115,8 @@ esp_err_t lcd_write_str(char *string) {
 	// Note: not safe if cursor is not at start of line...
 	for (int i = 0; i < strlen(string) && i < CONFIG_LCD_NUM_VISIBLE_COLUMNS;
 	     i++) {
-		i2c_lcd1602_write_char(lcd_info, string[i]);
+		ESP_RETURN_ON_ERROR(i2c_lcd1602_write_char(lcd_info, string[i]), TAG,
+		                    "");
 	}
 	return ESP_OK;
 }

@@ -13,7 +13,7 @@ int isPartyModeOn = 0;
 int isBLuetoothOn = 0;
 int isRadioOn     = 0;
 
-static const char *lcdTag     = "LCD";
+static const char *TAG     = "MENU";
 static const char *btnOkTag   = "Button ok";
 static const char *btnUpTag   = "Button up";
 static const char *btnDownTag = "Button down";
@@ -23,7 +23,7 @@ static const char *btnDownTag = "Button down";
  */
 static void bluetoothOnOff(void *args) {
 	isBLuetoothOn = !isBLuetoothOn;
-	ESP_LOGI(lcdTag, "bluetooth %d", isBLuetoothOn);
+	ESP_LOGI(TAG, "bluetooth %d", isBLuetoothOn);
 }
 
 /**
@@ -31,7 +31,7 @@ static void bluetoothOnOff(void *args) {
  */
 static void partyModeOnOff(void *args) {
 	isPartyModeOn = !isPartyModeOn;
-	ESP_LOGI(lcdTag, "party mode %d", isPartyModeOn);
+	ESP_LOGI(TAG, "party mode %d", isPartyModeOn);
 }
 
 /**
@@ -39,28 +39,28 @@ static void partyModeOnOff(void *args) {
  */
 static void radioOnOff(void *args) {
 	isRadioOn = !isRadioOn;
-	ESP_LOGI(lcdTag, "radio %d", isRadioOn);
+	ESP_LOGI(TAG, "radio %d", isRadioOn);
 }
 
 /**
  * @brief Goes a channel down. (radio)
  */
-static void changeChannelDown(void *args) { ESP_LOGI(lcdTag, "channel down"); }
+static void changeChannelDown(void *args) { ESP_LOGI(TAG, "channel down"); }
 
 /**
  * @brief Goes a channel up. (radio)
  */
-static void changeChannelUp(void *args) { ESP_LOGI(lcdTag, "channel up"); }
+static void changeChannelUp(void *args) { ESP_LOGI(TAG, "channel up"); }
 
 /**
  * @brief Turns volume up.
  */
-static void plusVolume(void *args) { ESP_LOGI(lcdTag, "volume up"); }
+static void plusVolume(void *args) { ESP_LOGI(TAG, "volume up"); }
 
 /**
  * @brief Turns volume down.
  */
-static void minVolume(void *args) { ESP_LOGI(lcdTag, "volume down"); }
+static void minVolume(void *args) { ESP_LOGI(TAG, "volume down"); }
 
 static void screen_draw_menu(struct screen *screen, int redraw);
 static void screen_event_handler_menu(struct screen *screen, enum button_id);
@@ -189,7 +189,7 @@ more_lines:
  */
 static void screen_event_handler_menu(struct screen *screen,
                                       enum button_id button) {
-	ESP_LOGI(lcdTag, "button: %d", button);
+	ESP_LOGI(TAG, "button: %d", button);
 	struct menu *menu           = screen->data;
 	struct menu_item *menu_item = &menu->items[menu->index];
 	switch (button) {
@@ -245,7 +245,7 @@ static void screen_draw_welcome(struct screen *screen, int redraw) {
  */
 static void screen_event_handler_welcome(struct screen *screen,
                                          enum button_id button) {
-	ESP_LOGI(lcdTag, "button: %d", button);
+	ESP_LOGI(TAG, "button: %d", button);
 
 	switch (button) {
 		case BUTTON_OK:
@@ -305,6 +305,6 @@ void lcd1602_task(void *pvParameter) {
 		}
 		vTaskDelay(100 / portTICK_PERIOD_MS);
 	}
-	ESP_LOGE(lcdTag, "DOOD");
+	ESP_LOGE(TAG, "DOOD");
 	vTaskDelete(NULL);
 }
