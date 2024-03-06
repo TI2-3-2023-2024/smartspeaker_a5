@@ -18,32 +18,52 @@ static const char *btnOkTag   = "Button ok";
 static const char *btnUpTag   = "Button up";
 static const char *btnDownTag = "Button down";
 
+/**
+ * @brief Turns bluetooth on when off and off when on.
+ */
 static void bluetoothOnOff(void *args) {
 	isBLuetoothOn = !isBLuetoothOn;
 	ESP_LOGI(lcdTag, "bluetooth %d", isBLuetoothOn);
 }
 
+/**
+ * @brief Turns party mode on when off and off when on.
+ */
 static void partyModeOnOff(void *args) {
 	isPartyModeOn = !isPartyModeOn;
 	ESP_LOGI(lcdTag, "party mode %d", isPartyModeOn);
 }
 
+/**
+ * @brief Turns radio on when off and off when on.
+ */
 static void radioOnOff(void *args) {
 	isRadioOn = !isRadioOn;
 	ESP_LOGI(lcdTag, "radio %d", isRadioOn);
 }
 
+/**
+ * @brief Goes a channel down. (radio)
+ */
 static void changeChannelDown(void *args) { ESP_LOGI(lcdTag, "channel down"); }
 
+/**
+ * @brief Goes a channel up. (radio)
+ */
 static void changeChannelUp(void *args) { ESP_LOGI(lcdTag, "channel up"); }
 
+/**
+ * @brief Turns volume up.
+ */
 static void plusVolume(void *args) { ESP_LOGI(lcdTag, "volume up"); }
 
+/**
+ * @brief Turns volume down.
+ */
 static void minVolume(void *args) { ESP_LOGI(lcdTag, "volume down"); }
 
 static void screen_draw_menu(struct screen *screen, int redraw);
 static void screen_event_handler_menu(struct screen *screen, enum button_id);
-
 static void screen_draw_welcome(struct screen *screen, int redraw);
 static void screen_event_handler_welcome(struct screen *screen, enum button_id);
 
@@ -132,11 +152,14 @@ static struct screen *screen_current = &screen_welcome;
 #define MIN(a, b) ((a) > (b) ? (b) : (a))
 #define MAX(a, b) ((a) > (b) ? (a) : (b))
 
+/**
+ * @brief Draws the sub maps, functions and pointer on the screen.
+ */
 static void screen_draw_menu(struct screen *screen, int redraw) {
 	if (redraw) lcd_clear();
 	struct menu *menu = screen->data;
 
-	if (menu->size > LCD_NUM_ROWS) goto more_lines;
+	if (menu->size > CONFIG_LCD_NUM_ROWS) goto more_lines;
 
 	for (size_t i = 0; i < menu->size; i++) {
 		lcd_move_cursor(0, i);
@@ -148,15 +171,22 @@ static void screen_draw_menu(struct screen *screen, int redraw) {
 	return;
 more_lines:
 
-	for (size_t i = MIN(menu->index, menu->size - LCD_NUM_ROWS);
-	     i < MIN(menu->index, menu->size - LCD_NUM_ROWS) + LCD_NUM_ROWS; ++i) {
-		lcd_move_cursor(0, i - MIN(menu->index, menu->size - LCD_NUM_ROWS));
+	for (size_t i = MIN(menu->index, menu->size - CONFIG_LCD_NUM_ROWS);
+	     i < MIN(menu->index, menu->size - CONFIG_LCD_NUM_ROWS) +
+	             CONFIG_LCD_NUM_ROWS;
+	     ++i) {
+		lcd_move_cursor(0,
+		                i - MIN(menu->index, menu->size - CONFIG_LCD_NUM_ROWS));
 		if (menu->index == i) lcd_write_str("-");
 		else lcd_write_str(" ");
 		lcd_write_str(menu->items[i].name);
 	}
 }
 
+/**
+ * @brief Handles button presses on main menu so the pointer arrow can go up,
+ * down and run functions.
+ */
 static void screen_event_handler_menu(struct screen *screen,
                                       enum button_id button) {
 	ESP_LOGI(lcdTag, "button: %d", button);
@@ -193,6 +223,9 @@ static void screen_event_handler_menu(struct screen *screen,
 	}
 }
 
+/**
+ * @brief Draws the welcome screen.
+ */
 static void screen_draw_welcome(struct screen *screen, int redraw) {
 	lcd_clear();
 	lcd_move_cursor(0, 0);
@@ -206,6 +239,10 @@ static void screen_draw_welcome(struct screen *screen, int redraw) {
 	lcd_write_str("menu");
 }
 
+/**
+ * @brief Handles when ok button is pressed on welcome screen so it loads main
+ * menu.
+ */
 static void screen_event_handler_welcome(struct screen *screen,
                                          enum button_id button) {
 	ESP_LOGI(lcdTag, "button: %d", button);
