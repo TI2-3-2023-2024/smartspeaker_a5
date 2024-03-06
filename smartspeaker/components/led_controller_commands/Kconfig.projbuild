@@ -1,0 +1,10 @@
+menu "Led Controller"
+
+    config LED_CONTROLLER_ENABLED
+        bool "Led controller status"
+        default y
+        help
+            Enable or disable the led controller.
+
+
+endmenu
