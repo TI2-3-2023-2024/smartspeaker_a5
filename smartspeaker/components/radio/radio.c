@@ -29,7 +29,6 @@ static const char *TAG = "RADIO_COMPONENT";
 
 TaskHandle_t radio_task_handle = NULL;
 
-audio_board_handle_t *board_handle;
 audio_pipeline_handle_t pipeline;
 audio_element_handle_t i2s_stream_writer, mp3_decoder, http_stream_reader;
 
@@ -60,9 +59,8 @@ esp_err_t http_stream_event_handle(http_stream_event_msg_t *msg) {
 	return ESP_OK;
 }
 
-esp_err_t radio_init(audio_board_handle_t *audio_board_handle,
+esp_err_t radio_init(audio_element_handle_t output_writer,
                       audio_event_iface_handle_t evt) {
-	board_handle = audio_board_handle;
 
 	// Initialize HTTP stream
 	http_stream_cfg_t http_cfg      = HTTP_STREAM_CFG_DEFAULT();
@@ -75,9 +73,7 @@ esp_err_t radio_init(audio_board_handle_t *audio_board_handle,
 	mp3_decoder_cfg_t mp3_cfg = DEFAULT_MP3_DECODER_CONFIG();
 	mp3_decoder               = mp3_decoder_init(&mp3_cfg);
 
-	i2s_stream_cfg_t i2s_cfg = I2S_STREAM_CFG_DEFAULT();
-	i2s_cfg.type             = AUDIO_STREAM_WRITER;
-	i2s_stream_writer        = i2s_stream_init(&i2s_cfg);
+	i2s_stream_writer = output_writer;
 
 	// Initialize audio pipeline
 	audio_pipeline_cfg_t pipeline_cfg = DEFAULT_AUDIO_PIPELINE_CONFIG();
@@ -98,7 +94,7 @@ esp_err_t radio_init(audio_board_handle_t *audio_board_handle,
 /**
  * @brief Deinitialize the radio component and delete the radio task.
 */
-esp_err_t radio_deinit(audio_event_iface_handle_t evt) {
+esp_err_t radio_deinit(audio_element_handle_t output_writer, audio_event_iface_handle_t evt) {
 	ESP_RETURN_ON_ERROR(audio_pipeline_stop(pipeline), TAG, "");
 	ESP_RETURN_ON_ERROR(audio_pipeline_wait_for_stop(pipeline), TAG, "");
 	ESP_RETURN_ON_ERROR(audio_pipeline_terminate(pipeline), TAG, "");
@@ -112,6 +108,7 @@ esp_err_t radio_deinit(audio_event_iface_handle_t evt) {
 	ESP_RETURN_ON_ERROR(audio_pipeline_deinit(pipeline), TAG, "");
 	ESP_RETURN_ON_ERROR(audio_element_deinit(http_stream_reader), TAG, "");
 	ESP_RETURN_ON_ERROR(audio_element_deinit(mp3_decoder), TAG, "");
+	ESP_RETURN_ON_ERROR(audio_element_deinit(output_writer), TAG, "");
 
 	return ESP_OK;
 }
@@ -151,28 +148,28 @@ esp_err_t channel_down() {
 /**
  * @brief  Increase the volume of the radio.
 */
-esp_err_t volume_up(audio_board_handle_t *board_handle) {
-	ESP_LOGD(TAG, "Increasing volume");
+// esp_err_t volume_up(audio_board_handle_t *board_handle) {
+// 	ESP_LOGD(TAG, "Increasing volume");
 
-	player_volume += 10;
-	if (player_volume > 100) { player_volume = 100; }
-	ESP_RETURN_ON_ERROR(audio_hal_set_volume((*board_handle)->audio_hal, player_volume), TAG, "");
+// 	player_volume += 10;
+// 	if (player_volume > 100) { player_volume = 100; }
+// 	ESP_RETURN_ON_ERROR(audio_hal_set_volume((*board_handle)->audio_hal, player_volume), TAG, "");
 
-	return ESP_OK;
-}
+// 	return ESP_OK;
+// }
 
 /**
  * @brief  Decrease the volume of the radio.
 */
-esp_err_t volume_down(audio_board_handle_t *board_handle) {
-	ESP_LOGD(TAG, "Decreasing volume");
+// esp_err_t volume_down(audio_board_handle_t *board_handle) {
+// 	ESP_LOGD(TAG, "Decreasing volume");
 
-	player_volume -= 10;
-	if (player_volume < 0) { player_volume = 0; }
-	ESP_RETURN_ON_ERROR(audio_hal_set_volume((*board_handle)->audio_hal, player_volume), TAG, "");
+// 	player_volume -= 10;
+// 	if (player_volume < 0) { player_volume = 0; }
+// 	ESP_RETURN_ON_ERROR(audio_hal_set_volume((*board_handle)->audio_hal, player_volume), TAG, "");
 	
-	return ESP_OK;
-}
+// 	return ESP_OK;
+// }
 
 /**
  * @brief  Tune the radio to a specific channel.
@@ -271,28 +268,6 @@ esp_err_t radio_run(audio_event_iface_msg_t *msg) {
 			
 			if (err != ESP_OK) {
 				ESP_LOGE(TAG, "Failed to change channel (err=%d)", err);
-			}
-
-		// Vol+ button
-		} else if ((int)msg->data == get_input_volup_id()) {
-			ESP_LOGI(TAG, "Increasing volume");
-			player_volume += 10;
-			if (player_volume > 100) { player_volume = 100; }
-			
-			err = audio_hal_set_volume((*board_handle)->audio_hal, player_volume);
-			if (err != ESP_OK) {
-				ESP_LOGE(TAG, "Failed to increase volume (err=%d)", err);
-			}
-		
-		// Vol- button
-		} else if ((int)msg->data == get_input_voldown_id()) {
-			ESP_LOGI(TAG, "Decreasing volume");
-			player_volume -= 10;
-			if (player_volume < 0) { player_volume = 0; }
-
-			err = audio_hal_set_volume((*board_handle)->audio_hal, player_volume);
-			if (err != ESP_OK) {
-				ESP_LOGE(TAG, "Failed to decrease volume (err=%d)", err);
 			}
 		}
 	}

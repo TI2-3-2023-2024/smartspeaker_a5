@@ -69,7 +69,7 @@ void bt_sink_destroy(esp_periph_set_handle_t periph_set) {
 	bluetooth_service_destroy();
 }
 
-void bt_pipeline_init(audio_element_handle_t output,
+esp_err_t bt_pipeline_init(audio_element_handle_t output,
                       audio_event_iface_handle_t evt) {
 	output_stream_writer = output;
 
@@ -89,9 +89,10 @@ void bt_pipeline_init(audio_element_handle_t output,
 
 	audio_pipeline_set_listener(pipeline, evt);
 	audio_pipeline_run(pipeline);
+	return ESP_OK;
 }
 
-void bt_pipeline_destroy(audio_element_handle_t output_stream_writer,
+esp_err_t bt_pipeline_destroy(audio_element_handle_t output_stream_writer,
                          audio_event_iface_handle_t evt) {
 
 	ESP_LOGI(TAG, "Stop audio_pipeline");
@@ -104,6 +105,7 @@ void bt_pipeline_destroy(audio_element_handle_t output_stream_writer,
 	audio_pipeline_remove_listener(pipeline);
 	audio_pipeline_deinit(pipeline);
 	audio_element_deinit(bt_stream_reader);
+	return ESP_OK;
 }
 
 void bt_event_handler(audio_event_iface_msg_t msg) {

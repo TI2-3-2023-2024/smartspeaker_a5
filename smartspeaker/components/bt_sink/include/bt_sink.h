@@ -26,7 +26,7 @@ void bt_sink_destroy(esp_periph_set_handle_t periph_set);
  * @param output_stream_writer stream to which to output pipeline
  * @param evt event interface to use
  */
-void bt_pipeline_init(audio_element_handle_t output_stream_writer,
+esp_err_t bt_pipeline_init(audio_element_handle_t output_stream_writer,
                       audio_event_iface_handle_t evt);
 
 /**
@@ -35,7 +35,7 @@ void bt_pipeline_init(audio_element_handle_t output_stream_writer,
  * @param output_stream_writer stream to which to output pipeline
  * @param evt event interface to use
  */
-void bt_pipeline_destroy(audio_element_handle_t output_stream_writer,
+esp_err_t bt_pipeline_destroy(audio_element_handle_t output_stream_writer,
                          audio_event_iface_handle_t evt);
 
 /**

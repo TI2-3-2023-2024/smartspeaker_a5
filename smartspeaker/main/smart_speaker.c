@@ -1,11 +1,11 @@
 #include "bt_sink.h"
 #include "led_controller_commands.h"
-#include "wifi.h"
 #include "radio.h"
+#include "wifi.h"
 
-#include "freertos/FreeRTOS.h"
 #include "audio_event_iface.h"
 #include "board.h"
+#include "freertos/FreeRTOS.h"
 #include "nvs_flash.h"
 
 #include "audio_element.h"
@@ -29,11 +29,15 @@ static const char *TAG = "MAIN";
 static audio_board_handle_t board_handle;
 static esp_periph_set_handle_t periph_set;
 static audio_event_iface_handle_t evt;
+static audio_element_handle_t i2s_stream_writer;
 
-typedef esp_err_t(audio_init_fn)(audio_board_handle_t *, audio_event_iface_handle_t);
-typedef esp_err_t(audio_deinit_fn)(audio_event_iface_handle_t);
+typedef esp_err_t(audio_init_fn)(audio_element_handle_t,
+                                 audio_event_iface_handle_t);
+typedef esp_err_t(audio_deinit_fn)(audio_element_handle_t, audio_event_iface_handle_t);
 typedef esp_err_t(audio_run_fn)(audio_event_iface_msg_t *);
 static int player_volume = 0;
+static int use_led_strip = 1;
+static int use_radio     = 1;
 
 static void app_init(void) {
 	esp_log_level_set("*", ESP_LOG_INFO);
@@ -69,6 +73,10 @@ static void app_init(void) {
 	ESP_LOGI(TAG, "Add keys to event listener");
 	audio_event_iface_set_listener(esp_periph_set_get_event_iface(periph_set),
 	                               evt);
+								   
+	i2s_stream_cfg_t i2s_cfg = I2S_STREAM_CFG_DEFAULT();
+	i2s_cfg.type             = AUDIO_STREAM_WRITER;
+	i2s_stream_writer        = i2s_stream_init(&i2s_cfg);
 
 	/* Initialise Bluetooth sink component. */
 	ESP_LOGI(TAG, "Initialise Bluetooth sink");
@@ -98,15 +106,19 @@ static void app_free(void) {
 }
 
 static esp_err_t pipeline_init(audio_init_fn init_fn) {
-	return init_fn(&board_handle, evt);
+	init_fn(i2s_stream_writer, evt);
+	return ESP_OK;
 }
 
 static esp_err_t pipeline_deinit(audio_deinit_fn deinit_fn) {
-	return deinit_fn(evt);
+	deinit_fn(i2s_stream_writer, evt);
+	return ESP_OK;
 }
 
-static esp_err_t pipeline_run(audio_run_fn run_fn, audio_event_iface_msg_t *msg) {
-	return run_fn(msg);
+static esp_err_t pipeline_run(audio_run_fn run_fn,
+                              audio_event_iface_msg_t *msg) {
+	run_fn(msg);
+	return ESP_OK;
 }
 
 void set_leds_volume() {
@@ -115,11 +127,11 @@ void set_leds_volume() {
 	int leds = (int)(percentage * 30 + 0.5);
 	ESP_LOGI(TAG, "LED's: %d", leds);
 
-	turn_off();
+	led_controller_turn_off();
 
 	for (int i = 0; i < leds; i++) {
 		uint8_t message[] = { LED_ON, i, 100, 100, 100 };
-		send_command(message, 5);
+		led_controller_send_command(message, 5);
 	}
 }
 
@@ -128,15 +140,27 @@ void app_main(void) {
 
 	vTaskDelay(3000 / portTICK_PERIOD_MS);
 
-	esp_err_t err = pipeline_init(radio_init);
-	if (err != ESP_OK) {
-		ESP_LOGE(TAG, "Failed to start radio thread (err=%d) %s", err, esp_err_to_name(err));
-		return;
+	if (use_radio == 1) {
+		esp_err_t err = pipeline_init(radio_init);
+		if (err != ESP_OK) {
+			ESP_LOGE(TAG, "Failed to start radio thread (err=%d) %s", err,
+			         esp_err_to_name(err));
+			return;
+		}
+	} else {
+		esp_err_t err = pipeline_init(bt_pipeline_init);
+		if (err != ESP_OK) {
+			ESP_LOGE(TAG, "Failed to start Bluetooth sink thread (err=%d) %s",
+			         err, esp_err_to_name(err));
+			return;
+		}
 	}
 
 	player_volume = 50;
 	led_controller_set_leds_volume(player_volume);
 	audio_hal_set_volume(board_handle->audio_hal, player_volume);
+
+	esp_err_t err;
 
 	/* Main eventloop */
 	ESP_LOGI(TAG, "Entering main eventloop");
@@ -150,6 +174,16 @@ void app_main(void) {
 			continue;
 		}
 
+		if (use_radio == 1) {
+			err = pipeline_run(*radio_run, &msg);
+			if (err != ESP_OK) {
+				ESP_LOGE(TAG, "Radio handler failed (err=%d) %s", err,
+				         esp_err_to_name(err));
+				break;
+			}
+		} else {
+			bt_event_handler(msg);
+		}
 
 		if ((msg.source_type == PERIPH_ID_TOUCH ||
 		     msg.source_type == PERIPH_ID_BUTTON ||
@@ -185,16 +219,13 @@ void app_main(void) {
 				}
 				audio_hal_set_volume(board_handle->audio_hal, player_volume);
 			}
-		err = pipeline_run(radio_run, &msg);
-		if (err != ESP_OK) {
-			ESP_LOGE(TAG, "Radio handler failed (err=%d) %s", err, esp_err_to_name(err));
-			break;
 		}
 	}
 
 	err = pipeline_deinit(radio_deinit);
 	if (err != ESP_OK) {
-		ESP_LOGE(TAG, "Failed to destroy radio pipeline (err=%d) %s", err, esp_err_to_name(err));
+		ESP_LOGE(TAG, "Failed to destroy radio pipeline (err=%d) %s", err,
+		         esp_err_to_name(err));
 	}
 
 	app_free();

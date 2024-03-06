@@ -9,8 +9,8 @@ struct radio_channel {
     char *url;
 };
 
-esp_err_t radio_init(audio_board_handle_t *audio_board_handle, audio_event_iface_handle_t evt);
-esp_err_t radio_deinit(audio_event_iface_handle_t evt);
+esp_err_t radio_init(audio_element_handle_t output_writer, audio_event_iface_handle_t evt);
+esp_err_t radio_deinit(audio_element_handle_t output_writer, audio_event_iface_handle_t evt);
 
 esp_err_t radio_run(audio_event_iface_msg_t *msg);
 
