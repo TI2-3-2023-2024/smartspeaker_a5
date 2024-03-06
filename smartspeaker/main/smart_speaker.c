@@ -31,13 +31,8 @@ static esp_periph_set_handle_t periph_set;
 static audio_event_iface_handle_t evt;
 static audio_element_handle_t i2s_stream_writer;
 
-typedef esp_err_t(audio_init_fn)(audio_element_handle_t,
-                                 audio_event_iface_handle_t);
-typedef esp_err_t(audio_deinit_fn)(audio_element_handle_t, audio_event_iface_handle_t);
-typedef esp_err_t(audio_run_fn)(audio_event_iface_msg_t *);
-static int player_volume = 0;
-// static int use_led_strip = 1;
-static int use_radio     = 1;
+static bool use_radio = true;
+static int player_volume;
 
 static void app_init(void) {
 	esp_log_level_set("*", ESP_LOG_INFO);
@@ -52,13 +47,11 @@ static void app_init(void) {
 		err = nvs_flash_init();
 	}
 
-	/* Initialise audio board */
-	ESP_LOGI(TAG, "Start codec chip");
+	ESP_LOGI(TAG, "Initialise audio board");
 	board_handle = audio_board_init();
 	audio_hal_ctrl_codec(board_handle->audio_hal, AUDIO_HAL_CODEC_MODE_DECODE,
 	                     AUDIO_HAL_CTRL_START);
 
-	/* Initialise peripherals */
 	ESP_LOGI(TAG, "Initialise peripherals");
 	esp_periph_config_t periph_cfg = DEFAULT_ESP_PERIPH_SET_CONFIG();
 	periph_set                     = esp_periph_set_init(&periph_cfg);
@@ -66,25 +59,30 @@ static void app_init(void) {
 	ESP_LOGI(TAG, "Initialise touch peripheral");
 	audio_board_key_init(periph_set);
 
-	ESP_LOGI(TAG, "Set up event listener");
+	ESP_LOGI(TAG, "Initialise event listener");
 	audio_event_iface_cfg_t evt_cfg = AUDIO_EVENT_IFACE_DEFAULT_CFG();
 	evt                             = audio_event_iface_init(&evt_cfg);
 
 	ESP_LOGI(TAG, "Add keys to event listener");
 	audio_event_iface_set_listener(esp_periph_set_get_event_iface(periph_set),
 	                               evt);
-								   
+
 	i2s_stream_cfg_t i2s_cfg = I2S_STREAM_CFG_DEFAULT();
 	i2s_cfg.type             = AUDIO_STREAM_WRITER;
 	i2s_stream_writer        = i2s_stream_init(&i2s_cfg);
+
+	/* Initialise WI-Fi component */
+	ESP_LOGI(TAG, "Initialise WI-FI");
+	wifi_init();
+	wifi_wait();
 }
 
 static void app_free(void) {
-	ESP_LOGI(TAG, "Deinitialise Bluetooth sink");
-	bt_sink_destroy(periph_set);
-
+	ESP_LOGI(TAG, "Remove keys from event listener");
 	audio_event_iface_remove_listener(
 	    esp_periph_set_get_event_iface(periph_set), evt);
+
+	ESP_LOGI(TAG, "Deinitialise event listener");
 	audio_event_iface_destroy(evt);
 
 	ESP_LOGI(TAG, "Deinitialise peripherals");
@@ -95,140 +93,81 @@ static void app_free(void) {
 	audio_hal_ctrl_codec(board_handle->audio_hal, AUDIO_HAL_CODEC_MODE_BOTH,
 	                     AUDIO_HAL_CTRL_STOP);
 	audio_board_deinit(board_handle);
+
+	// TODO function for deinitialising wifi
 }
 
-static esp_err_t pipeline_init(audio_init_fn init_fn) {
-	init_fn(i2s_stream_writer, evt);
-	return ESP_OK;
-}
+void switch_stream() {
+	if (use_radio) {
+		use_radio = false;
 
-static esp_err_t pipeline_deinit(audio_deinit_fn deinit_fn) {
-	deinit_fn(i2s_stream_writer, evt);
-	return ESP_OK;
-}
+		ESP_LOGI(TAG, "Deinitialise radio");
+		ESP_ERROR_CHECK(deinit_radio(&i2s_stream_writer, 1, &evt));
 
-static esp_err_t pipeline_run(audio_run_fn run_fn,
-                              audio_event_iface_msg_t *msg) {
-	run_fn(msg);
-	return ESP_OK;
-}
-
-void set_leds_volume() {
-	float percentage = (float)player_volume / 100;
-	ESP_LOGI(TAG, "Volume: %f", percentage);
-	int leds = (int)(percentage * 30 + 0.5);
-	ESP_LOGI(TAG, "LED's: %d", leds);
-
-	led_controller_turn_off();
-
-	for (int i = 0; i < leds; i++) {
-		uint8_t message[] = { LED_ON, i, 100, 100, 100 };
-		led_controller_send_command(message, 5);
-	}
-}
-
-void switch_stream()
-{
-	if (use_radio == 1) {
-		// bt_pipeline_destroy(i2s_stream_writer, evt);
-		// bt_sink_destroy(periph_set);
-		/* Initialise WI-Fi component */
-		ESP_LOGI(TAG, "Initialise WI-FI");
-		wifi_init();
-		esp_err_t err = pipeline_init(radio_init);
-		if (err != ESP_OK) {
-			ESP_LOGE(TAG, "Failed to start radio thread (err=%d) %s", err,
-			         esp_err_to_name(err));
-			return;
-		}
-		use_radio = 0;
-	} else {
-		/* Initialise Bluetooth sink component. */
-		radio_deinit(i2s_stream_writer, evt);
 		ESP_LOGI(TAG, "Initialise Bluetooth sink");
-		bt_sink_init(periph_set);
-		ESP_LOGI(TAG, "using blauwe tand");
-		esp_err_t err = pipeline_init(bt_pipeline_init);
-		if (err != ESP_OK) {
-			ESP_LOGE(TAG, "Failed to start Bluetooth sink thread (err=%d) %s",
-			         err, esp_err_to_name(err));
-			return;
-		}
-		use_radio = 1;
+		ESP_ERROR_CHECK(init_bt(&i2s_stream_writer, 1, &evt, periph_set));
+	} else {
+		use_radio = true;
+
+		ESP_LOGI(TAG, "Deinitialise Bluetooth");
+		ESP_ERROR_CHECK(deinit_bt(&i2s_stream_writer, 1, &evt, periph_set));
+
+		ESP_LOGI(TAG, "Initialise radio");
+		ESP_ERROR_CHECK(init_radio(&i2s_stream_writer, 1, &evt));
 	}
 }
 
-void app_main(void) {
+void app_main() {
+	// Initialise component dependencies
 	app_init();
 
-	vTaskDelay(1000 / portTICK_PERIOD_MS);
+	ESP_RETURN_ON_ERROR(init_radio(&i2s_stream_writer, 1, &evt), TAG,
+	                    "Failed to start radio thread");
 
-	player_volume = 50;
-	led_controller_set_leds_volume(player_volume);
-	audio_hal_set_volume(board_handle->audio_hal, player_volume);
-
-	esp_err_t err;
-
-	/* Main eventloop */
-	ESP_LOGI(TAG, "Entering main eventloop");
+	// Main loop
 	for (;;) {
 		audio_event_iface_msg_t msg;
-		err = audio_event_iface_listen(evt, &msg, portMAX_DELAY);
+		ESP_RETURN_ON_ERROR(audio_event_iface_listen(evt, &msg, portMAX_DELAY),
+		                    TAG, "Event interface error");
 
-		if (err != ESP_OK) {
-			ESP_LOGE(TAG, "[ * ] Event interface error : (%d) %s", err,
-			         esp_err_to_name(err));
-			continue;
+		if (use_radio) {
+			ESP_RETURN_ON_ERROR(radio_run(&msg), TAG, "Radio handler failed");
+		} else {
+			ESP_RETURN_ON_ERROR(bt_run(&msg), TAG, "Bluetooth handler failed");
 		}
 
-		// if (use_radio == 1) {
-		// 	err = pipeline_run(*radio_run, &msg);
-		// 	if (err != ESP_OK) {
-		// 		ESP_LOGE(TAG, "Radio handler failed (err=%d) %s", err,
-		// 		         esp_err_to_name(err));
-		// 		break;
-		// 	}
-		// } else {
-		// 	bt_event_handler(msg);
-		// }
+		if (msg.source_type == PERIPH_ID_TOUCH ||
+		    msg.source_type == PERIPH_ID_BUTTON ||
+		    msg.source_type == PERIPH_ID_ADC_BTN) {
+			if (msg.cmd == PERIPH_TOUCH_TAP ||
+			    msg.cmd == PERIPH_BUTTON_PRESSED ||
+			    msg.cmd == PERIPH_ADC_BUTTON_PRESSED) {
+				if ((int)msg.data == get_input_play_id()) {
+					ESP_LOGI(TAG, "[ * ] [Play] touch tap event");
+					switch_stream();
+				} else if ((int)msg.data == get_input_set_id()) {
+					ESP_LOGI(TAG, "[ * ] [Set] touch tap event");
+				} else if ((int)msg.data == get_input_volup_id()) {
+					ESP_LOGI(TAG, "[ * ] [Vol+] touch tap event");
 
-		if ((msg.source_type == PERIPH_ID_TOUCH ||
-		     msg.source_type == PERIPH_ID_BUTTON ||
-		     msg.source_type == PERIPH_ID_ADC_BTN) &&
-		    (msg.cmd == PERIPH_TOUCH_TAP || msg.cmd == PERIPH_BUTTON_PRESSED ||
-		     msg.cmd == PERIPH_ADC_BUTTON_PRESSED)) {
+					player_volume += 10;
+					if (player_volume > 100) { player_volume = 100; }
+					audio_hal_set_volume(board_handle->audio_hal,
+					                     player_volume);
+					led_controller_set_leds_volume(player_volume);
+				} else if ((int)msg.data == get_input_voldown_id()) {
+					ESP_LOGI(TAG, "[ * ] [Vol-] touch tap event");
 
-			if ((int)msg.data == get_input_play_id()) {
-				ESP_LOGI(TAG, "[ * ] [Play] touch tap event");
-				switch_stream();
-			} else if ((int)msg.data == get_input_set_id()) {
-				ESP_LOGI(TAG, "[ * ] [Set] touch tap event");
-				// if (use_led_strip == 1) {
-				// 	led_controller_turn_off();
-				// 	use_led_strip = 0;
-				// } else {
-				// 	led_controller_set_leds_volume(player_volume);
-				// 	use_led_strip = 1;
-				// }
-			} else if ((int)msg.data == get_input_volup_id()) {
-				ESP_LOGI(TAG, "[ * ] [Vol+] touch tap event");
-				player_volume += 10;
-				if (player_volume > 100) { player_volume = 100; }
-				audio_hal_set_volume(board_handle->audio_hal, player_volume);
-			} else if ((int)msg.data == get_input_voldown_id()) {
-				ESP_LOGI(TAG, "[ * ] [Vol-] touch tap event");
-				player_volume -= 10;
-				if (player_volume < 0) { player_volume = 0; }
-				audio_hal_set_volume(board_handle->audio_hal, player_volume);
+					player_volume -= 10;
+					if (player_volume < 0) { player_volume = 0; }
+					audio_hal_set_volume(board_handle->audio_hal,
+					                     player_volume);
+					led_controller_set_leds_volume(player_volume);
+				}
 			}
 		}
 	}
 
-	err = pipeline_deinit(radio_deinit);
-	if (err != ESP_OK) {
-		ESP_LOGE(TAG, "Failed to destroy radio pipeline (err=%d) %s", err,
-		         esp_err_to_name(err));
-	}
-
+	// Deinitialise component dependencies
 	app_free();
 }

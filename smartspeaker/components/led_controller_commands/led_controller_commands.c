@@ -27,7 +27,7 @@ void led_controller_config_master(void) {
  * @param message is the command being sent to the led controller
  * @param len is the length of the message
  */
-static void send_command(uint8_t *message, size_t len) {
+static void led_controller_send_command(uint8_t *message, size_t len) {
 	i2c_cmd_handle_t handle = i2c_cmd_link_create();
 	ESP_ERROR_CHECK(i2c_master_start(handle));
 	ESP_ERROR_CHECK(
@@ -41,14 +41,14 @@ static void send_command(uint8_t *message, size_t len) {
 void led_controller_turn_on_white_delay(void) {
 	for (int i = 0; i < 30; i++) {
 		uint8_t message[] = { LED_ON, i, 25, 25, 25 };
-		send_command(message, ARRAY_SIZE(message));
+		led_controller_send_command(message, ARRAY_SIZE(message));
 		vTaskDelay(50 / portTICK_PERIOD_MS);
 	}
 }
 
 void led_controller_turn_off(void) {
 	uint8_t message[] = { LED_OFF };
-	send_command(message, ARRAY_SIZE(message));
+	led_controller_send_command(message, ARRAY_SIZE(message));
 }
 
 void led_controller_set_leds_volume(int player_volume) {
@@ -62,10 +62,10 @@ void led_controller_set_leds_volume(int player_volume) {
 	for (int i = 0; i < leds; i++) {
 		if (use_led_strip) {
 			uint8_t message[] = { LED_ON, i, 100, 100, 100 };
-			send_command(message, ARRAY_SIZE(message));
+			led_controller_send_command(message, ARRAY_SIZE(message));
 		} else {
 			uint8_t message[] = { LED_ON, i, 0, 0, 0 };
-			send_command(message, ARRAY_SIZE(message));
+			led_controller_send_command(message, ARRAY_SIZE(message));
 		}
 	}
 }

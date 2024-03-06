@@ -11,7 +11,7 @@ enum led_effects { LED_OFF, LED_ON };
  */
 void led_controller_config_master(void);
 
-void led_controller_send_command(uint8_t *message, size_t len);
+static void led_controller_send_command(uint8_t *message, size_t len);
 
 /**
  * Basic test function for turning all LED's on

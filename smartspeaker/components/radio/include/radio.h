@@ -5,12 +5,14 @@
 #include "esp_err.h"
 
 struct radio_channel {
-    char *name;
-    char *url;
+	char *name;
+	char *url;
 };
 
-esp_err_t radio_init(audio_element_handle_t output_writer, audio_event_iface_handle_t evt);
-esp_err_t radio_deinit(audio_element_handle_t output_writer, audio_event_iface_handle_t evt);
+esp_err_t init_radio(audio_element_handle_t *elems, size_t count,
+                     audio_event_iface_handle_t *evt);
+esp_err_t deinit_radio(audio_element_handle_t *elems, size_t count,
+                       audio_event_iface_handle_t *evt);
 
 esp_err_t radio_run(audio_event_iface_msg_t *msg);
 
@@ -21,6 +23,5 @@ esp_err_t channel_down();
 
 esp_err_t volume_up();
 esp_err_t volume_down();
-
 
 #endif
