@@ -80,7 +80,7 @@ static void app_init(void) {
 
 	/* Initialise Bluetooth sink component. */
 	ESP_LOGI(TAG, "Initialise Bluetooth sink");
-	bt_sink_init(periph_set);
+	// bt_sink_init(periph_set);
 
 	/* Initialise WI-Fi component */
 	ESP_LOGI(TAG, "Initialise WI-FI");
@@ -138,9 +138,10 @@ void set_leds_volume() {
 void app_main(void) {
 	app_init();
 
-	vTaskDelay(3000 / portTICK_PERIOD_MS);
+	vTaskDelay(5000 / portTICK_PERIOD_MS);
 
 	if (use_radio == 1) {
+		ESP_LOGI(TAG, "using radio");
 		esp_err_t err = pipeline_init(radio_init);
 		if (err != ESP_OK) {
 			ESP_LOGE(TAG, "Failed to start radio thread (err=%d) %s", err,
@@ -148,6 +149,7 @@ void app_main(void) {
 			return;
 		}
 	} else {
+		ESP_LOGI(TAG, "using blauwe tand");
 		esp_err_t err = pipeline_init(bt_pipeline_init);
 		if (err != ESP_OK) {
 			ESP_LOGE(TAG, "Failed to start Bluetooth sink thread (err=%d) %s",

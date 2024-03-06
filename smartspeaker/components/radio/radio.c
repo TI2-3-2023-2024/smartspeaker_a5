@@ -71,7 +71,7 @@ esp_err_t radio_init(audio_element_handle_t output_writer,
 	ESP_RETURN_ON_ERROR(audio_element_set_uri(http_stream_reader, channels[cur_chnl_idx].url), TAG, "");
 
 	mp3_decoder_cfg_t mp3_cfg = DEFAULT_MP3_DECODER_CONFIG();
-	mp3_decoder               = mp3_decoder_init(&mp3_cfg);
+	mp3_decoder               =  mp3_decoder_init(&mp3_cfg);
 
 	i2s_stream_writer = output_writer;
 
