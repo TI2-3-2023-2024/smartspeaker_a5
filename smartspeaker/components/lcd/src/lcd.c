@@ -42,9 +42,9 @@ static void radioOnOff(void *args) {
 	ESP_LOGI(lcdTag, "radio %d", isRadioOn);
 }
 
-static void changeChannelDown() { ESP_LOGI(lcdTag, "channel down"); }
+static void changeChannelDown(void *args) { ESP_LOGI(lcdTag, "channel down"); }
 
-static void changeChannelUp() { ESP_LOGI(lcdTag, "channel up"); }
+static void changeChannelUp(void *args) { ESP_LOGI(lcdTag, "channel up"); }
 
 static void plusVolume(void *args) { ESP_LOGI(lcdTag, "volume up"); }
 
