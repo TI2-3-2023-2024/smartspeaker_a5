@@ -1,125 +1,6 @@
+/* standard libs */
 #include <stdio.h>
 #include <stdlib.h>
-
-#define ARRAY_SIZE(a) (sizeof(a) / sizeof(a[0]))
-
-enum button_id {
-	BUTTON_NONE = 0,
-	BUTTON_UP,
-	BUTTON_DOWN,
-	BUTTON_OK,
-};
-
-struct screen;
-typedef void (*screen_event_handler)(struct screen *, enum button_id);
-typedef void (*screen_draw)(struct screen *, int redraw);
-
-struct screen {
-	screen_draw draw;
-	screen_event_handler event_handler;
-	void *data;
-};
-
-enum menu_type {
-	MENU_TYPE_NONE = 0,
-	MENU_TYPE_MENU,
-	MENU_TYPE_FUNCTION,
-	MENU_TYPE_SCREEN,
-};
-
-typedef void (*menu_function)(void *);
-struct menu;
-
-union menu_data {
-	menu_function function;
-	struct menu *menu;
-	struct screen *screen;
-};
-
-struct menu_item {
-	enum menu_type type;
-	char *name;
-	union menu_data data;
-};
-
-struct menu {
-	size_t size;
-	size_t index;
-	struct menu_item *items;
-};
-
-static struct menu menu_main;
-
-static struct menu_item menu_clock_items[] = {
-	{ .name = "Clock" },
-	{ .name = "+" },
-	{ .name = "-" },
-	{ .type = MENU_TYPE_MENU, .name = "Back", .data.menu = &menu_main },
-};
-
-static struct menu menu_clock = {
-	.size  = ARRAY_SIZE(menu_clock_items),
-	.index = 0,
-	.items = menu_clock_items,
-};
-
-static struct menu_item menu_radio_items[] = {
-	{ .name = "Radio" },
-	{ .name = "Radio On/Off" },
-	{ .name = "Change channel up" },
-	{ .name = "Change channel down" },
-	{ .name = "+" },
-	{ .name = "-" },
-	{ .type = MENU_TYPE_MENU, .name = "Back", .data.menu = &menu_main },
-};
-
-static struct menu menu_radio = {
-	.size  = ARRAY_SIZE(menu_radio_items),
-	.index = 0,
-	.items = menu_radio_items,
-};
-
-static struct menu_item menu_bluetooth_items[] = {
-	{ .name = "Bluetooth" },
-	{ .name = "Bluetooth On/Off" },
-	{ .name = "Partymode On/Off" },
-	//{ .type = MENU_TYPE_FUNCTION, .name = "+", .data.function = plus },
-	{ .name = "+" },
-	{ .name = "-" },
-	{ .type = MENU_TYPE_MENU, .name = "Back", .data.menu = &menu_main },
-};
-
-static struct menu menu_bluetooth = {
-	.size  = ARRAY_SIZE(menu_bluetooth_items),
-	.index = 0,
-	.items = menu_bluetooth_items,
-};
-
-static struct menu_item menu_main_items[] = {
-	{ .name = "Menu" },
-	{ .type = MENU_TYPE_MENU, .name = "Clock", .data.menu = &menu_clock },
-	{ .type = MENU_TYPE_MENU, .name = "Radio", .data.menu = &menu_radio },
-	{ .type      = MENU_TYPE_MENU,
-	  .name      = "Bluetooth",
-	  .data.menu = &menu_bluetooth },
-};
-
-static struct menu menu_main = {
-	.size  = ARRAY_SIZE(menu_main_items),
-	.index = 0,
-	.items = menu_main_items,
-};
-
-void screen_draw_menu(struct screen *screen, int redraw);
-void screen_event_handler_menu(struct screen *screen, enum button_id);
-
-struct screen screen_menu = {
-	.draw          = screen_draw_menu,
-	.event_handler = screen_event_handler_menu,
-	.data          = &menu_main,
-};
-
-static struct screen *screen_current = &screen_menu;
 
 /* lcd */
 #include "driver/gpio.h"
@@ -135,10 +16,128 @@ static struct screen *screen_current = &screen_menu;
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 
+#include "menu.h"
+
+int isPartyModeOn = 0;
+int isBLuetoothOn = 0;
+int isRadioOn     = 0;
+
 static const char *lcdTag     = "LCD";
 static const char *btnOkTag   = "Button ok";
 static const char *btnUpTag   = "Button up";
 static const char *btnDownTag = "Button down";
+
+static void bluetoothOnOff(void *args) {
+	isBLuetoothOn = !isBLuetoothOn;
+	ESP_LOGI(lcdTag, "bluetooth %d", isBLuetoothOn);
+}
+
+static void partyModeOnOff(void *args) {
+	isPartyModeOn = !isPartyModeOn;
+	ESP_LOGI(lcdTag, "party mode %d", isPartyModeOn);
+}
+
+static void radioOnOff(void *args) {
+	isRadioOn = !isRadioOn;
+	ESP_LOGI(lcdTag, "radio %d", isRadioOn);
+}
+
+static void changeChannelDown() { ESP_LOGI(lcdTag, "channel down"); }
+
+static void changeChannelUp() { ESP_LOGI(lcdTag, "channel up"); }
+
+static void plusVolume(void *args) { ESP_LOGI(lcdTag, "volume up"); }
+
+static void minVolume(void *args) { ESP_LOGI(lcdTag, "volume down"); }
+
+static void screen_draw_menu(struct screen *screen, int redraw);
+static void screen_event_handler_menu(struct screen *screen, enum button_id);
+
+static void screen_draw_welcome(struct screen *screen, int redraw);
+static void screen_event_handler_welcome(struct screen *screen, enum button_id);
+
+static struct menu menu_main;
+
+static struct menu_item menu_clock_items[] = {
+	{ .type = MENU_TYPE_FUNCTION, .name = "+", .data.function = plusVolume },
+	{ .type = MENU_TYPE_FUNCTION, .name = "-", .data.function = minVolume },
+	{ .type = MENU_TYPE_MENU, .name = "Back", .data.menu = &menu_main },
+};
+
+static struct menu_item menu_radio_items[] = {
+	{ .type          = MENU_TYPE_FUNCTION,
+	  .name          = "Radio On/Off",
+	  .data.function = radioOnOff },
+	{ .type          = MENU_TYPE_FUNCTION,
+	  .name          = "Change channel up",
+	  .data.function = changeChannelUp },
+	{ .type          = MENU_TYPE_FUNCTION,
+	  .name          = "Change channel down",
+	  .data.function = changeChannelDown },
+
+	{ .type = MENU_TYPE_FUNCTION, .name = "+", .data.function = plusVolume },
+	{ .type = MENU_TYPE_FUNCTION, .name = "-", .data.function = minVolume },
+	{ .type = MENU_TYPE_MENU, .name = "Back", .data.menu = &menu_main },
+};
+
+static struct menu_item menu_bluetooth_items[] = {
+	{ .type          = MENU_TYPE_FUNCTION,
+	  .name          = "Bluetooth On/Off",
+	  .data.function = bluetoothOnOff },
+	{ .type          = MENU_TYPE_FUNCTION,
+	  .name          = "Partymode On/Off",
+	  .data.function = partyModeOnOff },
+	{ .type = MENU_TYPE_FUNCTION, .name = "+", .data.function = plusVolume },
+	{ .type = MENU_TYPE_FUNCTION, .name = "-", .data.function = minVolume },
+	{ .type = MENU_TYPE_MENU, .name = "Back", .data.menu = &menu_main },
+};
+
+/* menus */
+static struct menu menu_clock = {
+	.size  = ARRAY_SIZE(menu_clock_items),
+	.index = 0,
+	.items = menu_clock_items,
+};
+
+static struct menu menu_radio = {
+	.size  = ARRAY_SIZE(menu_radio_items),
+	.index = 0,
+	.items = menu_radio_items,
+};
+
+static struct menu menu_bluetooth = {
+	.size  = ARRAY_SIZE(menu_bluetooth_items),
+	.index = 0,
+	.items = menu_bluetooth_items,
+};
+
+static struct menu_item menu_main_items[] = {
+	{ .type = MENU_TYPE_MENU, .name = "Clock", .data.menu = &menu_clock },
+	{ .type = MENU_TYPE_MENU, .name = "Radio", .data.menu = &menu_radio },
+	{ .type      = MENU_TYPE_MENU,
+	  .name      = "Bluetooth",
+	  .data.menu = &menu_bluetooth },
+};
+
+static struct menu menu_main = {
+	.size  = ARRAY_SIZE(menu_main_items),
+	.index = 0,
+	.items = menu_main_items,
+};
+
+struct screen screen_menu = {
+	.draw          = screen_draw_menu,
+	.event_handler = screen_event_handler_menu,
+	.data          = &menu_main,
+};
+
+struct screen screen_welcome = {
+	.draw          = screen_draw_welcome,
+	.event_handler = screen_event_handler_welcome,
+	.data          = NULL,
+};
+
+static struct screen *screen_current = &screen_welcome;
 
 // LCD2004
 #define LCD_NUM_ROWS            4
@@ -210,30 +209,12 @@ void writeStrToLcd(char *string, i2c_lcd1602_info_t *lcd_info) {
 	}
 }
 
-// This function goes to the next row when your string is longer than 20
-// characters
-void writeStrToLcdAutoRow(char *string, i2c_lcd1602_info_t *lcd_info,
-                          int currentRow) {
-	int row = currentRow;
-
-	for (int i = 0; i < strlen(string); i++) {
-		i2c_lcd1602_write_char(lcd_info, string[i]);
-		if (i % 19 == 0 && i != 0) {
-			row++;
-			i2c_lcd1602_move_cursor(lcd_info, 0, row);
-		}
-	}
-}
-
 #define MIN(a, b) ((a) > (b) ? (b) : (a))
 #define MAX(a, b) ((a) > (b) ? (a) : (b))
 
-void screen_draw_menu(struct screen *screen, int redraw) {
+static void screen_draw_menu(struct screen *screen, int redraw) {
 	if (redraw) i2c_lcd1602_clear(lcd_info);
 	struct menu *menu = screen->data;
-
-	// for (size_t i = 0; i < menu->size; ++i) printf("%s\n",
-	// menu->items[i].name);
 
 	if (menu->size > LCD_NUM_ROWS) goto more_lines;
 
@@ -257,7 +238,8 @@ more_lines:
 	}
 }
 
-void screen_event_handler_menu(struct screen *screen, enum button_id button) {
+static void screen_event_handler_menu(struct screen *screen,
+                                      enum button_id button) {
 	ESP_LOGI(lcdTag, "button: %d", button);
 	struct menu *menu           = screen->data;
 	struct menu_item *menu_item = &menu->items[menu->index];
@@ -286,6 +268,32 @@ void screen_event_handler_menu(struct screen *screen, enum button_id button) {
 					break;
 				default: break;
 			}
+			screen_current->draw(screen_current, true);
+			break;
+		default: break;
+	}
+}
+
+static void screen_draw_welcome(struct screen *screen, int redraw) {
+	i2c_lcd1602_clear(lcd_info);
+	i2c_lcd1602_move_cursor(lcd_info, 0, 0);
+
+	writeStrToLcd("Welcome", lcd_info);
+	i2c_lcd1602_move_cursor(lcd_info, 0, 1);
+	writeStrToLcd("Press middle button", lcd_info);
+	i2c_lcd1602_move_cursor(lcd_info, 0, 2);
+	writeStrToLcd("to navigate to main", lcd_info);
+	i2c_lcd1602_move_cursor(lcd_info, 0, 3);
+	writeStrToLcd("menu", lcd_info);
+}
+
+static void screen_event_handler_welcome(struct screen *screen,
+                                         enum button_id button) {
+	ESP_LOGI(lcdTag, "button: %d", button);
+
+	switch (button) {
+		case BUTTON_OK:
+			screen_current = &screen_menu;
 			screen_current->draw(screen_current, true);
 			break;
 		default: break;
@@ -321,16 +329,7 @@ void lcd1602_task(void *pvParameter) {
 	ESP_LOGI(lcdTag, "backlight on");
 	i2c_lcd1602_set_backlight(lcd_info, true);
 
-	// ESP_LOGI(TAG, "cursor on");
-	// i2c_lcd1602_set_cursor(lcd_info, true);
-
 	i2c_lcd1602_clear(lcd_info);
-
-	// setup welcome screen on lcd i2c_lcd1602_move_cursor(lcd_info, 0, 0);
-	writeStrToLcd("Welcome", lcd_info);
-	i2c_lcd1602_move_cursor(lcd_info, 0, 1);
-	writeStrToLcdAutoRow("Press the middle button to navigate to our menu",
-	                     lcd_info, 1);
 
 	// Initialize previous button states
 	int prevBtnUp   = -1;
@@ -346,10 +345,6 @@ void lcd1602_task(void *pvParameter) {
 		int btnUp   = (value >> 2) & 1;
 		int btnOk   = (value >> 0) & 1;
 		int btnDown = (value >> 1) & 1;
-
-		// ESP_LOGI(lcdTag, "%x", value);
-
-		// screen_current->draw(screen_current, 0);
 
 		// Check for changes in button states
 		if (btnUp != prevBtnUp || btnOk != prevBtnOk ||
