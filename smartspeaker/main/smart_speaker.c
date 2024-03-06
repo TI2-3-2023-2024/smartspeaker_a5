@@ -6,6 +6,7 @@
 #include "sntp-mod.h"
 #include "utils/macro.h"
 #include "wifi.h"
+#include "sd_play.h"
 
 #include "audio_event_iface.h"
 #include "board.h"
