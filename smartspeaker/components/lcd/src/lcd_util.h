@@ -5,11 +5,6 @@
 #include "esp_err.h"
 #include <stdint.h>
 
-// LCD2004
-#define LCD_NUM_ROWS            4
-#define LCD_NUM_COLUMNS         40
-#define LCD_NUM_VISIBLE_COLUMNS 20
-
 void i2c_master_init(void);
 
 void lcd_button_init(void);
