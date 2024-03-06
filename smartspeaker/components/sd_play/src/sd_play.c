@@ -28,11 +28,10 @@
 
 static const char *TAG = "SD_PLAY";
 
-audio_pipeline_handle_t pipeline;
-audio_element_handle_t i2s_stream_writer, mp3_decoder, fatfs_stream_reader, rsp_handle;
-playlist_operator_handle_t sdcard_list_handle = NULL;
-
-int player_volume = 
+static audio_pipeline_handle_t pipeline;
+static audio_element_handle_t i2s_stream_writer, mp3_decoder,
+    fatfs_stream_reader, rsp_handle;
+static playlist_operator_handle_t sdcard_list_handle = NULL;
 
 void play() {
 	ESP_LOGI(TAG, "[ * ] [Play] input key event");
@@ -55,63 +54,53 @@ void play() {
 }
 
 void set() {
-    ESP_LOGI(TAG, "[ * ] [Set] input key event");
-    ESP_LOGI(TAG, "[ * ] Stopped, advancing to the next song");
-    char *url = NULL;
-    audio_pipeline_stop(pipeline);
-    audio_pipeline_wait_for_stop(pipeline);
-    audio_pipeline_terminate(pipeline);
-    sdcard_list_next(sdcard_list_handle, 1, &url);
-    ESP_LOGW(TAG, "URL: %s", url);
-    audio_element_set_uri(fatfs_stream_reader, url);
-    audio_pipeline_reset_ringbuffer(pipeline);
-    audio_pipeline_reset_elements(pipeline);
-    audio_pipeline_run(pipeline);
+	ESP_LOGI(TAG, "[ * ] [Set] input key event");
+	ESP_LOGI(TAG, "[ * ] Stopped, advancing to the next song");
+	char *url = NULL;
+	audio_pipeline_stop(pipeline);
+	audio_pipeline_wait_for_stop(pipeline);
+	audio_pipeline_terminate(pipeline);
+	sdcard_list_next(sdcard_list_handle, 1, &url);
+	ESP_LOGW(TAG, "URL: %s", url);
+	audio_element_set_uri(fatfs_stream_reader, url);
+	audio_pipeline_reset_ringbuffer(pipeline);
+	audio_pipeline_reset_elements(pipeline);
+	audio_pipeline_run(pipeline);
 }
 
 void set_volume(int volume) {
-    if (volume < 0) { volume = 0; }
-    if (volume > 100) { volume = 100; }
+	if (volume < 0) { volume = 0; }
+	if (volume > 100) { volume = 100; }
 
-    audio_hal_set_volume(board_handle->audio_hal, volume);
-    ESP_LOGI(TAG, "[ * ] Volume set to %d %%", volume);
+	audio_hal_set_volume(board_handle->audio_hal, volume);
+	ESP_LOGI(TAG, "[ * ] Volume set to %d %%", volume);
 }
 
 int get_volume() {
-    int player_volume;
+	int player_volume;
 	audio_hal_get_volume(board_handle->audio_hal, &player_volume);
-    return player_volume;
+	return player_volume;
 }
 
 void volume_up() {
-    ESP_LOGI(TAG, "[ * ] [Vol+] input key event");
-    setVolume(get_volume + 10);
+	ESP_LOGI(TAG, "[ * ] [Vol+] input key event");
+	setVolume(get_volume + 10);
 }
 
 void volume_down() {
-    ESP_LOGI(TAG, "[ * ] [Vol-] input key event");
-    setVolume(get_volume - 10);
+	ESP_LOGI(TAG, "[ * ] [Vol-] input key event");
+	setVolume(get_volume - 10);
 }
 
-/**
- * @brief
- */
-esp_err_t button_handler(periph_service_handle_t handle,periph_service_event_t *evt, void *ctx) {
+esp_err_t button_handler(periph_service_handle_t handle,
+                         periph_service_event_t *evt, void *ctx) {
 	if (evt->type == INPUT_KEY_SERVICE_ACTION_CLICK_RELEASE) {
 		ESP_LOGI(TAG, "[ * ] input key id is %d", (int)evt->data);
 		switch ((int)evt->data) {
-			case INPUT_KEY_USER_ID_PLAY:
-				play();
-                break;
-			case INPUT_KEY_USER_ID_SET:
-				set();
-				break;
-			case INPUT_KEY_USER_ID_VOLUP:
-				volume_up();
-				break;
-			case INPUT_KEY_USER_ID_VOLDOWN:
-				volume_down();
-				break;
+			case INPUT_KEY_USER_ID_PLAY: play(); break;
+			case INPUT_KEY_USER_ID_SET: set(); break;
+			case INPUT_KEY_USER_ID_VOLUP: volume_up(); break;
+			case INPUT_KEY_USER_ID_VOLDOWN: volume_down(); break;
 		}
 	}
 	return ESP_OK;
@@ -126,18 +115,12 @@ vvoid sdcard_url_save_cb(void *user_data, char *url) {
 	}
 }
 
-// TODO
-void app_main(void) {
+void initialize(esp_periph_set_handle_t periph_set) {
 	esp_log_level_set("*", ESP_LOG_WARN);
 	esp_log_level_set(TAG, ESP_LOG_INFO);
 
-	ESP_LOGI(TAG, "[1.0] Initialize peripherals management");
-	esp_periph_config_t periph_cfg = DEFAULT_ESP_PERIPH_SET_CONFIG();
-	esp_periph_set_handle_t set    = esp_periph_set_init(&periph_cfg);
-
-	ESP_LOGI(TAG, "[1.1] Initialize and start peripherals");
-	audio_board_key_init(set);
-	audio_board_sdcard_init(set, SD_MODE_1_LINE);
+	ESP_LOGI(TAG, "[1.1] Initialise SD card peripheral");
+	audio_board_sdcard_init(periph_set, SD_MODE_1_LINE);
 
 	ESP_LOGI(TAG,
 	         "[1.2] Set up a sdcard playlist and scan sdcard music save to it");
@@ -146,18 +129,14 @@ void app_main(void) {
 	            sdcard_list_handle);
 	sdcard_list_show(sdcard_list_handle);
 
-	ESP_LOGI(TAG, "[ 2 ] Start codec chip");
-	audio_board_handle_t board_handle = audio_board_init();
-	audio_hal_ctrl_codec(board_handle->audio_hal, AUDIO_HAL_CODEC_MODE_DECODE,
-	                     AUDIO_HAL_CTRL_START);
-
 	ESP_LOGI(TAG, "[ 3 ] Create and start input key service");
 	input_key_service_info_t input_key_info[] = INPUT_KEY_DEFAULT_INFO();
 	input_key_service_cfg_t input_cfg = INPUT_KEY_SERVICE_DEFAULT_CONFIG();
 	input_cfg.handle                  = set;
 	periph_service_handle_t input_ser = input_key_service_create(&input_cfg);
 	input_key_service_add_key(input_ser, input_key_info, INPUT_KEY_NUM);
-	periph_service_set_callback(input_ser, button_handler, (void *)board_handle);
+	periph_service_set_callback(input_ser, button_handler,
+	                            (void *)board_handle);
 
 	ESP_LOGI(TAG, "[4.0] Create audio pipeline for playback");
 	audio_pipeline_cfg_t pipeline_cfg = DEFAULT_AUDIO_PIPELINE_CONFIG();
@@ -213,60 +192,62 @@ void app_main(void) {
 	ESP_LOGW(TAG, "[ 6 ] Press the keys to control music player:");
 	ESP_LOGW(TAG, "      [Play] to start, pause and resume, [Set] next song.");
 	ESP_LOGW(TAG, "      [Vol-] or [Vol+] to adjust volume.");
+}
 
-	while (1) {
-		/* Handle event interface messages from pipeline
-		   to set music info and to advance to the next song
-		*/
-		audio_event_iface_msg_t msg;
-		esp_err_t ret = audio_event_iface_listen(evt, &msg, portMAX_DELAY);
-		if (ret != ESP_OK) {
-			ESP_LOGE(TAG, "[ * ] Event interface error : %d", ret);
+void run() {
+	/* Handle event interface messages from pipeline
+	       to set music info and to advance to the next song
+	    */
+	audio_event_iface_msg_t msg;
+	esp_err_t ret = audio_event_iface_listen(evt, &msg, portMAX_DELAY);
+	if (ret != ESP_OK) {
+		ESP_LOGE(TAG, "[ * ] Event interface error : %d", ret);
+		continue;
+	}
+	if (msg.source_type == AUDIO_ELEMENT_TYPE_ELEMENT) {
+		// Set music info for a new song to be played
+		if (msg.source == (void *)mp3_decoder &&
+		    msg.cmd == AEL_MSG_CMD_REPORT_MUSIC_INFO) {
+			audio_element_info_t music_info = { 0 };
+			audio_element_getinfo(mp3_decoder, &music_info);
+			ESP_LOGI(TAG,
+			         "[ * ] Received music info from mp3 decoder, "
+			         "sample_rates=%d, bits=%d, ch=%d",
+			         music_info.sample_rates, music_info.bits,
+			         music_info.channels);
+			audio_element_setinfo(i2s_stream_writer, &music_info);
+			rsp_filter_set_src_info(rsp_handle, music_info.sample_rates,
+			                        music_info.channels);
 			continue;
 		}
-		if (msg.source_type == AUDIO_ELEMENT_TYPE_ELEMENT) {
-			// Set music info for a new song to be played
-			if (msg.source == (void *)mp3_decoder &&
-			    msg.cmd == AEL_MSG_CMD_REPORT_MUSIC_INFO) {
-				audio_element_info_t music_info = { 0 };
-				audio_element_getinfo(mp3_decoder, &music_info);
-				ESP_LOGI(TAG,
-				         "[ * ] Received music info from mp3 decoder, "
-				         "sample_rates=%d, bits=%d, ch=%d",
-				         music_info.sample_rates, music_info.bits,
-				         music_info.channels);
-				audio_element_setinfo(i2s_stream_writer, &music_info);
-				rsp_filter_set_src_info(rsp_handle, music_info.sample_rates,
-				                        music_info.channels);
-				continue;
+		// Advance to the next song when previous finishes
+		if (msg.source == (void *)i2s_stream_writer &&
+		    msg.cmd == AEL_MSG_CMD_REPORT_STATUS) {
+			audio_element_state_t el_state =
+			    audio_element_get_state(i2s_stream_writer);
+			if (el_state == AEL_STATE_FINISHED) {
+				ESP_LOGI(TAG, "[ * ] Finished, advancing to the next song");
+				sdcard_list_next(sdcard_list_handle, 1, &url);
+				ESP_LOGW(TAG, "URL: %s", url);
+				/* In previous versions, audio_pipeline_terminal() was
+				 * called here. It will close all the element task and when
+				 * we use the pipeline next time, all the tasks should be
+				 * restarted again. It wastes too much time when we switch
+				 * to another music. So we use another method to achieve
+				 * this as below.
+				 */
+				audio_element_set_uri(fatfs_stream_reader, url);
+				audio_pipeline_reset_ringbuffer(pipeline);
+				audio_pipeline_reset_elements(pipeline);
+				audio_pipeline_change_state(pipeline, AEL_STATE_INIT);
+				audio_pipeline_run(pipeline);
 			}
-			// Advance to the next song when previous finishes
-			if (msg.source == (void *)i2s_stream_writer &&
-			    msg.cmd == AEL_MSG_CMD_REPORT_STATUS) {
-				audio_element_state_t el_state =
-				    audio_element_get_state(i2s_stream_writer);
-				if (el_state == AEL_STATE_FINISHED) {
-					ESP_LOGI(TAG, "[ * ] Finished, advancing to the next song");
-					sdcard_list_next(sdcard_list_handle, 1, &url);
-					ESP_LOGW(TAG, "URL: %s", url);
-					/* In previous versions, audio_pipeline_terminal() was
-					 * called here. It will close all the element task and when
-					 * we use the pipeline next time, all the tasks should be
-					 * restarted again. It wastes too much time when we switch
-					 * to another music. So we use another method to achieve
-					 * this as below.
-					 */
-					audio_element_set_uri(fatfs_stream_reader, url);
-					audio_pipeline_reset_ringbuffer(pipeline);
-					audio_pipeline_reset_elements(pipeline);
-					audio_pipeline_change_state(pipeline, AEL_STATE_INIT);
-					audio_pipeline_run(pipeline);
-				}
-				continue;
-			}
+			continue;
 		}
 	}
+}
 
+void destroy() {
 	ESP_LOGI(TAG, "[ 7 ] Stop audio_pipeline");
 	audio_pipeline_stop(pipeline);
 	audio_pipeline_wait_for_stop(pipeline);
