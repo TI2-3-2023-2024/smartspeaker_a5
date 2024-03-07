@@ -1,4 +1,5 @@
 #include "bt_sink.h"
+#include "lcd.h"
 #include "led_controller_commands.h"
 #include "radio.h"
 #include "wifi.h"
@@ -6,6 +7,7 @@
 #include "audio_event_iface.h"
 #include "board.h"
 #include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
 #include "nvs_flash.h"
 
 #include "audio_element.h"
@@ -71,7 +73,10 @@ static void app_init(void) {
 	i2s_cfg.type             = AUDIO_STREAM_WRITER;
 	i2s_stream_writer        = i2s_stream_init(&i2s_cfg);
 
-	/* Initialise WI-Fi component */
+	ESP_LOGI(TAG, "Run LCD task");
+	xTaskCreatePinnedToCore(lcd1602_task, "lcd_task", 1024 * 2, NULL, 5, NULL,
+	                        1);
+
 	ESP_LOGI(TAG, "Initialise WI-FI");
 	wifi_init();
 	wifi_wait();
