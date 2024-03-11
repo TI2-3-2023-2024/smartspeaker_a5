@@ -1,5 +1,8 @@
+CONFIG_WIFI_SSID="wtf"
+CONFIG_WIFI_PASS="joost123"
+
 #
-# Automatically generated file. DO NOT EDIT.
+# Automatically generated file. DO NOT EDIT. <- I'm doing it anyway lol.
 # Espressif IoT Development Framework (ESP-IDF) Project Configuration
 #
 CONFIG_IDF_CMAKE=y
