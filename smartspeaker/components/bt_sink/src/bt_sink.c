@@ -7,6 +7,7 @@
 #include "audio_pipeline.h"
 #include "bluetooth_service.h"
 #include "board.h"
+#include "esp_check.h"
 #include "esp_log.h"
 #include "esp_peripherals.h"
 #include "filter_resample.h"
@@ -36,42 +37,32 @@ static void bt_app_avrc_ct_cb(esp_avrc_ct_cb_event_t event,
 	}
 }
 
-// static audio_board_handle_t board_handle;
-
 static esp_periph_handle_t bt_periph;
 static audio_pipeline_handle_t pipeline;
 static audio_element_handle_t bt_stream_reader;
 static audio_element_handle_t output_stream_writer;
 
-void bt_sink_init(esp_periph_set_handle_t periph_set) {
+esp_err_t init_bt(audio_element_handle_t *elems, size_t count,
+                  audio_event_iface_handle_t evt,
+                  esp_periph_set_handle_t periph_set) {
 	ESP_LOGI(TAG, "Create Bluetooth service");
 	bluetooth_service_cfg_t bt_cfg = {
 		.device_name                   = CONFIG_BT_SINK_DEVICE_NAME,
 		.mode                          = BLUETOOTH_A2DP_SINK,
 		.user_callback.user_avrc_ct_cb = bt_app_avrc_ct_cb,
 	};
-	bluetooth_service_start(&bt_cfg);
+	ESP_RETURN_ON_ERROR(bluetooth_service_start(&bt_cfg), TAG,
+	                    "Bluetooth service start failed");
 
 	ESP_LOGI(TAG, "Create Bluetooth peripheral");
 	bt_periph = bluetooth_service_create_periph();
 
 	ESP_LOGI(TAG, "Start all peripherals");
-	esp_periph_start(periph_set, bt_periph);
-}
+	ESP_RETURN_ON_ERROR(esp_periph_start(periph_set, bt_periph), TAG, "");
 
-void bt_sink_destroy(esp_periph_set_handle_t periph_set) {
-	ESP_LOGI(TAG, "Destroy Bluetooth peripheral");
-	esp_periph_stop(bt_periph);
-	esp_periph_remove_from_set(periph_set, bt_periph);
-	esp_periph_destroy(bt_periph);
-
-	ESP_LOGI(TAG, "Destroy Bluetooth service");
-	bluetooth_service_destroy();
-}
-
-void bt_pipeline_init(audio_element_handle_t output,
-                      audio_event_iface_handle_t evt) {
-	output_stream_writer = output;
+	i2s_stream_cfg_t i2s_cfg = I2S_STREAM_CFG_DEFAULT();
+	i2s_cfg.type             = AUDIO_STREAM_WRITER;
+	output_stream_writer     = i2s_stream_init(&i2s_cfg);
 
 	ESP_LOGI(TAG, "Create audio pipeline");
 	audio_pipeline_cfg_t pipeline_cfg = DEFAULT_AUDIO_PIPELINE_CONFIG();
@@ -87,12 +78,18 @@ void bt_pipeline_init(audio_element_handle_t output,
 	const char *link_tag[2] = { "bt", "output" };
 	audio_pipeline_link(pipeline, link_tag, 2);
 
-	audio_pipeline_set_listener(pipeline, evt);
-	audio_pipeline_run(pipeline);
+	audio_event_iface_cfg_t evt_cfg = AUDIO_EVENT_IFACE_DEFAULT_CFG();
+	evt                             = audio_event_iface_init(&evt_cfg);
+
+	esp_err_t err = audio_pipeline_set_listener(pipeline, evt);
+	ESP_RETURN_ON_ERROR(audio_pipeline_run(pipeline), TAG, "");
+
+	return ESP_OK;
 }
 
-void bt_pipeline_destroy(audio_element_handle_t output_stream_writer,
-                         audio_event_iface_handle_t evt) {
+esp_err_t deinit_bt(audio_element_handle_t *elems, size_t count,
+                    audio_event_iface_handle_t evt,
+                    esp_periph_set_handle_t periph_set) {
 
 	ESP_LOGI(TAG, "Stop audio_pipeline");
 	audio_pipeline_stop(pipeline);
@@ -101,15 +98,70 @@ void bt_pipeline_destroy(audio_element_handle_t output_stream_writer,
 
 	audio_pipeline_unregister(pipeline, bt_stream_reader);
 	audio_pipeline_unregister(pipeline, output_stream_writer);
-	audio_pipeline_remove_listener(pipeline);
+
+	ESP_RETURN_ON_ERROR(audio_pipeline_remove_listener(pipeline), TAG, "");
+
+	ESP_LOGI(TAG, "Destroy Bluetooth peripheral");
+	esp_periph_stop(bt_periph);
+	esp_periph_remove_from_set(periph_set, bt_periph);
+	esp_periph_destroy(bt_periph);
+	audio_event_iface_remove_listener(
+	    esp_periph_set_get_event_iface(periph_set), evt);
+
 	audio_pipeline_deinit(pipeline);
 	audio_element_deinit(bt_stream_reader);
+	audio_element_deinit(output_stream_writer);
+
+	ESP_LOGI(TAG, "Stop Bluetooth service");
+	ESP_RETURN_ON_ERROR(bluetooth_service_destroy(), TAG,
+	                    "Bluetooth service destroy failed");
+
+	return ESP_OK;
 }
 
-void bt_event_handler(audio_event_iface_msg_t msg) {
-	if (msg.source_type == AUDIO_ELEMENT_TYPE_ELEMENT &&
-	    msg.source == (void *)bt_stream_reader &&
-	    msg.cmd == AEL_MSG_CMD_REPORT_MUSIC_INFO) {
+// esp_err_t bt_pipeline_init(audio_element_handle_t output,
+//                            audio_event_iface_handle_t evt) {
+// 	output_stream_writer = output;
+
+// 	ESP_LOGI(TAG, "Create audio pipeline");
+// 	audio_pipeline_cfg_t pipeline_cfg = DEFAULT_AUDIO_PIPELINE_CONFIG();
+// 	pipeline                          = audio_pipeline_init(&pipeline_cfg);
+
+// 	ESP_LOGI(TAG, "[3.2] Get Bluetooth stream");
+// 	bt_stream_reader = bluetooth_service_create_stream();
+
+// 	ESP_LOGI(TAG, "[3.2] Register all elements to audio pipeline");
+// 	audio_pipeline_register(pipeline, bt_stream_reader, "bt");
+// 	audio_pipeline_register(pipeline, output_stream_writer, "output");
+
+// 	const char *link_tag[2] = { "bt", "output" };
+// 	audio_pipeline_link(pipeline, link_tag, 2);
+
+// 	audio_pipeline_set_listener(pipeline, evt);
+// 	audio_pipeline_run(pipeline);
+// 	return ESP_OK;
+// }
+
+// esp_err_t bt_pipeline_destroy(audio_element_handle_t output_stream_writer,
+//                               audio_event_iface_handle_t evt) {
+
+// 	ESP_LOGI(TAG, "Stop audio_pipeline");
+// 	audio_pipeline_stop(pipeline);
+// 	audio_pipeline_wait_for_stop(pipeline);
+// 	audio_pipeline_terminate(pipeline);
+
+// 	audio_pipeline_unregister(pipeline, bt_stream_reader);
+// 	audio_pipeline_unregister(pipeline, output_stream_writer);
+// 	audio_pipeline_remove_listener(pipeline);
+// 	audio_pipeline_deinit(pipeline);
+// 	audio_element_deinit(bt_stream_reader);
+// 	return ESP_OK;
+// }
+
+esp_err_t bt_run(audio_event_iface_msg_t *msg) {
+	if (msg->source_type == AUDIO_ELEMENT_TYPE_ELEMENT &&
+	    msg->source == (void *)bt_stream_reader &&
+	    msg->cmd == AEL_MSG_CMD_REPORT_MUSIC_INFO) {
 		audio_element_info_t music_info = { 0 };
 		audio_element_getinfo(bt_stream_reader, &music_info);
 
@@ -126,19 +178,20 @@ void bt_event_handler(audio_event_iface_msg_t msg) {
 	}
 
 	/* Stop when the Bluetooth is disconnected or suspended */
-	if (msg.source_type == PERIPH_ID_BLUETOOTH &&
-	    msg.source == (void *)bt_periph) {
-		if (msg.cmd == PERIPH_BLUETOOTH_DISCONNECTED) {
+	if (msg->source_type == PERIPH_ID_BLUETOOTH &&
+	    msg->source == (void *)bt_periph) {
+		if (msg->cmd == PERIPH_BLUETOOTH_DISCONNECTED) {
 			ESP_LOGW(TAG, "[ * ] Bluetooth disconnected");
 		}
 	}
 	/* Stop when the last pipeline element (i2s_stream_writer in this case)
 	 * receives stop event */
-	if (msg.source_type == AUDIO_ELEMENT_TYPE_ELEMENT &&
-	    msg.source == (void *)output_stream_writer &&
-	    msg.cmd == AEL_MSG_CMD_REPORT_STATUS &&
-	    (((int)msg.data == AEL_STATUS_STATE_STOPPED) ||
-	     ((int)msg.data == AEL_STATUS_STATE_FINISHED))) {
+	if (msg->source_type == AUDIO_ELEMENT_TYPE_ELEMENT &&
+	    msg->source == (void *)output_stream_writer &&
+	    msg->cmd == AEL_MSG_CMD_REPORT_STATUS &&
+	    (((int)msg->data == AEL_STATUS_STATE_STOPPED) ||
+	     ((int)msg->data == AEL_STATUS_STATE_FINISHED))) {
 		ESP_LOGW(TAG, "[ * ] Stop event received");
 	}
+	return ESP_OK;
 }
