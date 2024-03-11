@@ -142,6 +142,11 @@ void app_main() {
 	// Initialise component dependencies
 	app_init();
 
+	
+
+	xTaskCreate(&lcd1602_task, "lcd1602_task", 4096, NULL, 5, NULL);
+	pipeline_init(bt_pipeline_init, i2s_stream_writer);
+
 	player_volume = 50;
 #ifdef CONFIG_LED_CONTROLLER_ENABLED
 	led_controller_set_leds_volume(player_volume);
