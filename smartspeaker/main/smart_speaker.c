@@ -2,8 +2,8 @@
 #include "bt_sink.h"
 #include "lcd.h"
 #include "led_controller_commands.h"
-#include "wifi.h"
 #include "sntp-mod.h"
+#include "wifi.h"
 
 #include "audio_event_iface.h"
 #include "board.h"
@@ -31,9 +31,9 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 
-#include <sys/time.h>
 #include <esp_log.h>
 #include <esp_sntp.h>
+#include <sys/time.h>
 
 static const char *TAG = "MAIN";
 
@@ -99,7 +99,7 @@ static void app_init(void) {
 	wifi_wait();
 
 	/* Initialise SNTP*/
-    ESP_LOGI(TAG, "Initialize SNTP");
+	ESP_LOGI(TAG, "Initialize SNTP");
 	sntp_mod_init();
 }
 
@@ -138,8 +138,7 @@ void app_main(void) {
 	xTaskCreate(&lcd1602_task, "lcd1602_task", 4096, NULL, 5, NULL);
 	fetch_current_time();
 
-	while(1)
-	{
+	while (1) {
 		print_system_time();
 		vTaskDelay(2000 / portTICK_PERIOD_MS);
 	}
