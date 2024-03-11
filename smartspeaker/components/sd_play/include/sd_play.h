@@ -23,7 +23,7 @@ void play_audio_through_int(int number);
  * @param periph_set peripheral set to add sdcard player service to.
  */
 void sd_play_init_sdcard_clock(audio_event_iface_handle_t evt,
-                  esp_periph_set_handle_t periph_set);
+                               esp_periph_set_handle_t periph_set);
 
 /**
  * @brief Initialise sdcard board.
@@ -34,7 +34,7 @@ void sd_play_init_sdcard(esp_periph_set_handle_t periph_set);
 
 /**
  * @brief Deinit everything.
- * 
+ *
  * @param periph_set peripheral set to add sdcard player service to.
  */
 esp_err_t sd_play_deinit_sdcard_clock(void);
