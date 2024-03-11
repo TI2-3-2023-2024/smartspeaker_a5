@@ -138,7 +138,11 @@ void app_main(void) {
 	xTaskCreate(&lcd1602_task, "lcd1602_task", 4096, NULL, 5, NULL);
 	print_current_time();
 
-        vTaskDelay(2000000 / portTICK_PERIOD_MS);
+	while(1)
+	{
+		print_system_time();
+		vTaskDelay(2000 / portTICK_PERIOD_MS);
+	}
 
 	pipeline_init(bt_pipeline_init, i2s_stream_writer);
 
