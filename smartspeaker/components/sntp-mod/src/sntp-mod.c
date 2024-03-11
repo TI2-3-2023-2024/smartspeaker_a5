@@ -8,7 +8,6 @@
 #include "sntp-mod.h"
 
 static const char *TAG = "SNTP";
-static char Current_Date_Time[100];
 
 void sntp_mod_init(void) {
     // Setup SNTP operating mode
@@ -23,7 +22,7 @@ void sntp_mod_init(void) {
 
 /// @brief Gets the current time from the NTP server and stores it in a char array
 /// @param date_time is the char array to copy the time into
-static void fetch_current_time(char *date_time) {
+void fetch_current_time(void) {
     time_t now;
     struct tm timeinfo;
 
@@ -40,14 +39,6 @@ static void fetch_current_time(char *date_time) {
     setenv("TZ", "CET-1CEST,M3.5.0,M10.5.0/3", 1);
     tzset();
     localtime_r(&now, &timeinfo);
-
-    // Format the time
-    strftime(date_time, 100, "%c", &timeinfo);
-}
-
-void print_fetched_time(void) {
-    fetch_current_time(Current_Date_Time);
-    ESP_LOGI(TAG, "Fetched date and time: %s\n", Current_Date_Time);
 }
 
 void print_system_time(void)

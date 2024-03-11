@@ -136,7 +136,7 @@ static void pipeline_destroy(audio_deinit_fn deinit_fn,
 void app_main(void) {
 	app_init();
 	xTaskCreate(&lcd1602_task, "lcd1602_task", 4096, NULL, 5, NULL);
-	print_current_time();
+	fetch_current_time();
 
 	while(1)
 	{
