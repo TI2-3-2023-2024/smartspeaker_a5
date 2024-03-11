@@ -101,6 +101,7 @@ static void app_init(void) {
 	/* Initialise SNTP*/
 	ESP_LOGI(TAG, "Initialize SNTP");
 	sntp_mod_init();
+	fetch_current_time();
 }
 
 static void app_free(void) {
@@ -136,13 +137,6 @@ static void pipeline_destroy(audio_deinit_fn deinit_fn,
 void app_main(void) {
 	app_init();
 	xTaskCreate(&lcd1602_task, "lcd1602_task", 4096, NULL, 5, NULL);
-	fetch_current_time();
-
-	while (1) {
-		print_system_time();
-		vTaskDelay(2000 / portTICK_PERIOD_MS);
-	}
-
 	pipeline_init(bt_pipeline_init, i2s_stream_writer);
 
 	player_volume = 50;

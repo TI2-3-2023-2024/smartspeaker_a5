@@ -18,25 +18,14 @@ void sntp_mod_init(void) {
 
 	// Initialize SNTP
 	esp_sntp_init();
-}
-
-void fetch_current_time(void) {
-	time_t now;
-	struct tm timeinfo;
-
-	// Wait for synchronization with the NTP server
-	while (sntp_get_sync_status() == SNTP_SYNC_STATUS_RESET) {
-		vTaskDelay(2000 / portTICK_PERIOD_MS);
-	}
-
-	// Get the current time
-	time(&now);
-	localtime_r(&now, &timeinfo);
 
 	// Set timezone
 	setenv("TZ", "CET-1CEST,M3.5.0,M10.5.0/3", 1);
 	tzset();
-	localtime_r(&now, &timeinfo);
+
+	while (sntp_get_sync_status() == SNTP_SYNC_STATUS_RESET) {
+		vTaskDelay(2000 / portTICK_PERIOD_MS);
+	}
 }
 
 void print_system_time(void) {
