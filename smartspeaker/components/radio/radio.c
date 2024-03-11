@@ -10,6 +10,7 @@
 #include "audio_common.h"
 #include "audio_element.h"
 #include "audio_event_iface.h"
+#include "audio_mem.h"
 #include "audio_pipeline.h"
 #include "board.h"
 #include "http_stream.h"
@@ -63,7 +64,7 @@ esp_err_t http_stream_event_handle(http_stream_event_msg_t *msg) {
 }
 
 esp_err_t init_radio(audio_element_handle_t *elems, size_t count,
-                     audio_event_iface_handle_t *evt) {
+                     audio_event_iface_handle_t evt) {
 	if (radio_initialized) {
 		ESP_LOGW(TAG, "Radio already initialized, skipping initialization");
 		return ESP_OK;
@@ -84,7 +85,9 @@ esp_err_t init_radio(audio_element_handle_t *elems, size_t count,
 	mp3_decoder               = mp3_decoder_init(&mp3_cfg);
 
 	// Initialize I2S stream
-	i2s_stream_writer = elems[0];
+	i2s_stream_cfg_t i2s_cfg = I2S_STREAM_CFG_DEFAULT();
+	i2s_cfg.type             = AUDIO_STREAM_WRITER;
+	i2s_stream_writer        = i2s_stream_init(&i2s_cfg);
 
 	// Initialize audio pipeline
 	audio_pipeline_cfg_t pipeline_cfg = DEFAULT_AUDIO_PIPELINE_CONFIG();
@@ -101,11 +104,13 @@ esp_err_t init_radio(audio_element_handle_t *elems, size_t count,
 	    TAG, "");
 
 	// Set up audio event interface and subscribe to pipeline events
-	ESP_RETURN_ON_ERROR(audio_pipeline_set_listener(pipeline, *evt), TAG, "");
+	ESP_RETURN_ON_ERROR(audio_pipeline_set_listener(pipeline, evt), TAG, "");
 
 	ESP_RETURN_ON_ERROR(audio_pipeline_run(pipeline), TAG, "");
 
 	radio_initialized = true;
+
+	audio_mem_print("RADIO MEM CHECK", __LINE__, __FUNCTION__);
 
 	return ESP_OK;
 }
@@ -114,11 +119,13 @@ esp_err_t init_radio(audio_element_handle_t *elems, size_t count,
  * @brief Deinitialize the radio component and delete the radio task.
  */
 esp_err_t deinit_radio(audio_element_handle_t *elems, size_t count,
-                       audio_event_iface_handle_t *evt) {
+                       audio_event_iface_handle_t evt) {
 	if (!radio_initialized) {
 		ESP_LOGW(TAG, "Radio already deinitialized, skipping deinitialization");
 		return ESP_OK;
 	}
+
+	ESP_RETURN_ON_ERROR(audio_pipeline_remove_listener(pipeline), TAG, "");
 
 	ESP_RETURN_ON_ERROR(audio_pipeline_stop(pipeline), TAG, "");
 	ESP_RETURN_ON_ERROR(audio_pipeline_wait_for_stop(pipeline), TAG, "");
@@ -131,11 +138,10 @@ esp_err_t deinit_radio(audio_element_handle_t *elems, size_t count,
 	ESP_RETURN_ON_ERROR(audio_pipeline_unregister(pipeline, mp3_decoder), TAG,
 	                    "");
 
-	ESP_RETURN_ON_ERROR(audio_pipeline_remove_listener(pipeline), TAG, "");
-
 	ESP_RETURN_ON_ERROR(audio_pipeline_deinit(pipeline), TAG, "");
 	ESP_RETURN_ON_ERROR(audio_element_deinit(http_stream_reader), TAG, "");
 	ESP_RETURN_ON_ERROR(audio_element_deinit(mp3_decoder), TAG, "");
+	audio_element_deinit(i2s_stream_writer);
 
 	radio_initialized = false;
 

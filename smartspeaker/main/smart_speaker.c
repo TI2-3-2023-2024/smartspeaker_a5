@@ -39,7 +39,6 @@ static const char *TAG = "MAIN";
 static audio_board_handle_t board_handle;
 static esp_periph_set_handle_t periph_set;
 static audio_event_iface_handle_t evt;
-static audio_element_handle_t i2s_stream_writer;
 
 static int player_volume = 0;
 static int use_led_strip = 1;
@@ -74,16 +73,14 @@ static void app_init(void) {
 
 	ESP_LOGI(TAG, "Initialise event listener");
 	audio_event_iface_cfg_t evt_cfg = AUDIO_EVENT_IFACE_DEFAULT_CFG();
+	evt_cfg.queue_set_size          = 10;
+	evt_cfg.internal_queue_size     = 10;
+	evt_cfg.external_queue_size     = 10;
 	evt                             = audio_event_iface_init(&evt_cfg);
 
 	ESP_LOGI(TAG, "Add keys to event listener");
 	audio_event_iface_set_listener(esp_periph_set_get_event_iface(periph_set),
 	                               evt);
-
-	i2s_stream_cfg_t i2s_cfg = I2S_STREAM_CFG_DEFAULT();
-	i2s_cfg.type             = AUDIO_STREAM_WRITER;
-	i2s_stream_writer        = i2s_stream_init(&i2s_cfg);
-
 	/* Initialise WI-Fi component */
 	ESP_LOGI(TAG, "Initialise WI-FI");
 	wifi_init();
@@ -115,18 +112,18 @@ void switch_stream() {
 		use_radio = false;
 
 		ESP_LOGI(TAG, "Deinitialise radio");
-		ESP_ERROR_CHECK(deinit_radio(&i2s_stream_writer, 1, &evt));
+		ESP_ERROR_CHECK(deinit_radio(NULL, 0, evt));
 
 		ESP_LOGI(TAG, "Initialise Bluetooth sink");
-		ESP_ERROR_CHECK(init_bt(&i2s_stream_writer, 1, &evt, periph_set));
+		ESP_ERROR_CHECK(init_bt(NULL, 0, evt, periph_set));
 	} else {
 		use_radio = true;
 
 		ESP_LOGI(TAG, "Deinitialise Bluetooth");
-		ESP_ERROR_CHECK(deinit_bt(&i2s_stream_writer, 1, &evt, periph_set));
+		ESP_ERROR_CHECK(deinit_bt(NULL, 0, evt, periph_set));
 
 		ESP_LOGI(TAG, "Initialise radio");
-		ESP_ERROR_CHECK(init_radio(&i2s_stream_writer, 1, &evt));
+		ESP_ERROR_CHECK(init_radio(NULL, 0, evt));
 	}
 }
 
@@ -141,15 +138,22 @@ void app_main() {
 #endif
 	audio_hal_set_volume(board_handle->audio_hal, player_volume);
 
-	ESP_RETURN_ON_ERROR(init_radio(&i2s_stream_writer, 1, &evt), TAG,
-	                    "Failed to start radio thread");
+	init_radio(NULL, 0, evt);
 
 	/* Main eventloop */
 	ESP_LOGI(TAG, "Entering main eventloop");
 	for (;;) {
+		if (evt == NULL) {
+			ESP_LOGE(TAG, "Event was null!!!!");
+			break;
+		}
 		audio_event_iface_msg_t msg;
 		ESP_RETURN_ON_ERROR(audio_event_iface_listen(evt, &msg, portMAX_DELAY),
 		                    TAG, "Event interface error");
+
+		ESP_LOGI(TAG,
+		         "Received event with cmd: %d and source_type %d and data %p",
+		         msg.cmd, msg.source_type, msg.data);
 
 		if (use_radio) {
 			ESP_RETURN_ON_ERROR(radio_run(&msg), TAG, "Radio handler failed");

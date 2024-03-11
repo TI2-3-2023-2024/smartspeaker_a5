@@ -12,7 +12,7 @@
  * @param periph_set peripheral set to add Bluetooth service to
  */
 esp_err_t init_bt(audio_element_handle_t *elems, size_t count,
-                  audio_event_iface_handle_t *evt,
+                  audio_event_iface_handle_t evt,
                   esp_periph_set_handle_t periph_set);
 
 /**
@@ -21,7 +21,7 @@ esp_err_t init_bt(audio_element_handle_t *elems, size_t count,
  * @param periph_set peripheral set to remove Bluetooth service from
  */
 esp_err_t deinit_bt(audio_element_handle_t *elems, size_t count,
-                    audio_event_iface_handle_t *evt,
+                    audio_event_iface_handle_t evt,
                     esp_periph_set_handle_t periph_set);
 
 // /**
