@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <sys/time.h>
+#include "string.h"
 
 #include "esp_err.h"
 #include "esp_log.h"
@@ -8,6 +9,8 @@
 
 static const char *TAG = "SNTP";
 
+char Current_Date_Time[100];
+
 void sntp_mod_init(void) {
 	// Set SNTP operating mode, IDK
 	esp_sntp_setoperatingmode(ESP_SNTP_OPMODE_POLL);
@@ -15,42 +18,40 @@ void sntp_mod_init(void) {
 	// Set the SNTP server
 	esp_sntp_setservername(0, "pool.ntp.org");
 
+
 	// Initialize SNTP
 	esp_sntp_init();
 
-	sntp_set_sync_mode(SNTP_SYNC_MODE_SMOOTH);
+}
 
-	// Get current time
-	struct timeval tv;
-	gettimeofday(&tv, NULL);
-
-	// Sync time
-	sntp_set_sync_mode(SNTP_SYNC_MODE_SMOOTH);
-	sntp_sync_time(&tv);
-
-    setenv("TZ", "CET-1", 1);
-    tzset();
-
-	struct tm timeinfo;
+void Get_current_date_time(char *date_time){
 	char strftime_buf[64];
-	localtime_r(&tv.tv_sec, &timeinfo);
+	time_t now;
+	    struct tm timeinfo;
+	    time(&now);
+	    localtime_r(&now, &timeinfo);
 
-	strftime(strftime_buf, sizeof(strftime_buf), "%c", &timeinfo);
-	ESP_LOGI(TAG, "%s", strftime_buf);
+	    	// Set timezone to Indian Standard Time
+    			setenv("TZ", "GMT-1", 1);
+	    	    tzset();
+	    	    localtime_r(&now, &timeinfo);
+
+	    	    strftime(strftime_buf, sizeof(strftime_buf), "%c", &timeinfo);
+	    	    ESP_LOGI(TAG, "The current date/time in Delhi is: %s", strftime_buf);
+                strcpy(date_time,strftime_buf);
 }
 
 void print_current_time(void) {
-	struct timeval tv;
-	struct tm timeinfo;
-	char strftime_buf[64];
-
-	// Get current time
-	gettimeofday(&tv, NULL);
-	localtime_r(&tv.tv_sec, &timeinfo);
-
-	// Format time
-	strftime(strftime_buf, sizeof(strftime_buf), "%c", &timeinfo);
-
-	// Print from format
-	ESP_LOGI(TAG, "Current Date and Time: %s", strftime_buf);
+	time_t now = 0;
+    struct tm timeinfo = { 0 };
+    int retry = 0;
+    const int retry_count = 10;
+    while (sntp_get_sync_status() == SNTP_SYNC_STATUS_RESET && ++retry < retry_count) {
+        ESP_LOGI(TAG, "Waiting for system time to be set... (%d/%d)", retry, retry_count);
+        vTaskDelay(2000 / portTICK_PERIOD_MS);
+    }
+	Get_current_date_time(Current_Date_Time);
+	ESP_LOGI(TAG, "current date and time is %s\n", Current_Date_Time);
+    time(&now);
+    localtime_r(&now, &timeinfo);
 }

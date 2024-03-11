@@ -96,6 +96,7 @@ static void app_init(void) {
 	/* Initialise WI-Fi component */
 	ESP_LOGI(TAG, "Initialise WI-FI");
 	wifi_init();
+	wifi_wait();
 
 	/* Initialise SNTP*/
     ESP_LOGI(TAG, "Initialize SNTP");
@@ -136,6 +137,9 @@ void app_main(void) {
 	app_init();
 	xTaskCreate(&lcd1602_task, "lcd1602_task", 4096, NULL, 5, NULL);
 	print_current_time();
+
+        vTaskDelay(2000000 / portTICK_PERIOD_MS);
+
 	pipeline_init(bt_pipeline_init, i2s_stream_writer);
 
 	player_volume = 50;
