@@ -3,6 +3,7 @@
 #include "lcd.h"
 #include "led_controller_commands.h"
 #include "wifi.h"
+#include "sntp-mod.h"
 
 #include "audio_event_iface.h"
 #include "board.h"
@@ -29,6 +30,10 @@
 /* freertos */
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+
+#include <sys/time.h>
+#include <esp_log.h>
+#include <esp_sntp.h>
 
 static const char *TAG = "MAIN";
 
@@ -91,6 +96,10 @@ static void app_init(void) {
 	/* Initialise WI-Fi component */
 	ESP_LOGI(TAG, "Initialise WI-FI");
 	wifi_init();
+
+	/* Initialise SNTP*/
+    ESP_LOGI(TAG, "Initialize SNTP");
+	sntp_mod_init();
 }
 
 static void app_free(void) {
@@ -126,6 +135,7 @@ static void pipeline_destroy(audio_deinit_fn deinit_fn,
 void app_main(void) {
 	app_init();
 	xTaskCreate(&lcd1602_task, "lcd1602_task", 4096, NULL, 5, NULL);
+	print_current_time();
 	pipeline_init(bt_pipeline_init, i2s_stream_writer);
 
 	player_volume = 50;
