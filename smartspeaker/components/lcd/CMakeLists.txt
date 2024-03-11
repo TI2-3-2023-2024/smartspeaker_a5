@@ -1,4 +1,4 @@
-set(priv_requires esp32-i2c-lcd1602 esp32-smbus utils)
+set(priv_requires esp32-i2c-lcd1602 esp32-smbus utils main)
 
 idf_component_register(SRCS "src/lcd.c"
                             "src/menu.c"

@@ -3,17 +3,20 @@
 #include "lcd_util.h"
 #include "utils/macro.h"
 
+#include "audio_common.h"
+#include "audio_element.h"
+#include "audio_event_iface.h"
 #include "esp_log.h"
 
-#include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include <stdlib.h>
 
-int isPartyModeOn = 0;
-int isBLuetoothOn = 0;
-int isRadioOn     = 0;
+static int isPartyModeOn = 0;
+static int isBLuetoothOn = 0;
+static int isRadioOn     = 0;
 
-static const char *TAG = "MENU";
+static audio_event_iface_handle_t evt_ptr = NULL;
+static const char *TAG                    = "MENU";
 
 /**
  * @brief Turns bluetooth on when off and off when on.
@@ -52,7 +55,18 @@ static void changeChannelUp(void *args) { ESP_LOGI(TAG, "channel up"); }
 /**
  * @brief Turns volume up.
  */
-static void plusVolume(void *args) { ESP_LOGI(TAG, "volume up"); }
+static void plusVolume(void *args) {
+	ESP_LOGI(TAG, "volume up");
+
+	enum ui_cmd ui_command      = UIC_VOLUME_UP;
+	audio_event_iface_msg_t msg = {
+		.cmd         = UIC_VOLUME_UP,
+		.source_type = 6969,
+		.data        = (void *)ui_command,
+	};
+
+	audio_event_iface_sendout(evt_ptr, &msg);
+}
 
 /**
  * @brief Turns volume down.
@@ -254,6 +268,17 @@ static void screen_event_handler_welcome(struct screen *screen,
 }
 
 void lcd1602_task(void *pvParameter) {
+	audio_event_iface_cfg_t evt_cfg = AUDIO_EVENT_IFACE_DEFAULT_CFG();
+	evt_cfg.queue_set_size          = 20;
+	evt_cfg.external_queue_size     = 20;
+	evt_cfg.internal_queue_size     = 20;
+	evt_ptr                         = audio_event_iface_init(&evt_cfg);
+
+	audio_event_iface_handle_t evt_param =
+	    (audio_event_iface_handle_t)pvParameter;
+
+	audio_event_iface_set_listener(evt_ptr, evt_param);
+
 	// Set up I2C
 	i2c_master_init();
 

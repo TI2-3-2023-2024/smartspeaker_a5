@@ -92,7 +92,7 @@ static void app_init(void) {
 	sntp_mod_init();
 
 #ifdef CONFIG_LCD_ENABLED
-	xTaskCreate(&lcd1602_task, "lcd1602_task", 4096, NULL, 5, NULL);
+	xTaskCreate(&lcd1602_task, "lcd1602_task", 4096, evt, 5, NULL);
 #endif
 }
 
