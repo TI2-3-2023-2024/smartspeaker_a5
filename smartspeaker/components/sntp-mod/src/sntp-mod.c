@@ -8,60 +8,51 @@
 #include "sntp-mod.h"
 
 static const char *TAG = "SNTP";
-
-char Current_Date_Time[100];
+static char Current_Date_Time[100];
 
 void sntp_mod_init(void) {
-	// Setup SNTP operating mode
-	esp_sntp_setoperatingmode(ESP_SNTP_OPMODE_POLL);
+    // Setup SNTP operating mode
+    esp_sntp_setoperatingmode(ESP_SNTP_OPMODE_POLL);
 
-	// Set NTP server
-	esp_sntp_setservername(0, "pool.ntp.org");
+    // Set NTP server
+    esp_sntp_setservername(0, "pool.ntp.org");
 
-	// Initialize SNTP
-	esp_sntp_init();
+    // Initialize SNTP
+    esp_sntp_init();
 }
 
-/// @brief Gets the current time of ntp server and stores it in char[]
-/// @param date_time is the char[] co copy time into
-static void get_current_date_time(char *date_time) {
-	char strftime_buf[64];
-	time_t now;
-	struct tm timeinfo;
-	time(&now);
-	localtime_r(&now, &timeinfo);
+/// @brief Gets the current time from the NTP server and stores it in a char array
+/// @param date_time is the char array to copy the time into
+static void fetch_current_time(char *date_time) {
+    time_t now;
+    struct tm timeinfo;
 
-	// Set timezone
-	setenv("TZ", "CET-1CEST,M3.5.0,M10.5.0/3", 1);
-	tzset();
+    // Wait for synchronization with the NTP server
+    while (sntp_get_sync_status() == SNTP_SYNC_STATUS_RESET) {
+        vTaskDelay(2000 / portTICK_PERIOD_MS);
+    }
 
-	localtime_r(&now, &timeinfo);
+    // Get the current time
+    time(&now);
+    localtime_r(&now, &timeinfo);
 
-	strftime(strftime_buf, sizeof(strftime_buf), "%c", &timeinfo);
-	ESP_LOGI(TAG, "The current date/time in Delhi is: %s", strftime_buf);
-	strcpy(date_time, strftime_buf);
+    // Set timezone
+    setenv("TZ", "CET-1CEST,M3.5.0,M10.5.0/3", 1);
+    tzset();
+    localtime_r(&now, &timeinfo);
+
+    // Format the time
+    strftime(date_time, 100, "%c", &timeinfo);
 }
 
-void print_current_time(void) {
-	time_t now            = 0;
-	struct tm timeinfo    = { 0 };
-	int retry             = 0;
-	const int retry_count = 10;
-	while (sntp_get_sync_status() == SNTP_SYNC_STATUS_RESET &&
-	       ++retry < retry_count) {
-		ESP_LOGI(TAG, "Waiting for system time to be set... (%d/%d)", retry,
-		         retry_count);
-		vTaskDelay(2000 / portTICK_PERIOD_MS);
-	}
-	get_current_date_time(Current_Date_Time);
-	ESP_LOGI(TAG, "current date and time is %s\n", Current_Date_Time);
-	time(&now);
-	localtime_r(&now, &timeinfo);
+void print_fetched_time(void) {
+    fetch_current_time(Current_Date_Time);
+    ESP_LOGI(TAG, "Fetched date and time: %s\n", Current_Date_Time);
 }
 
 void print_system_time(void)
 {
-	time_t now;
+    time_t now;
     struct tm timeinfo;
 
     // Get current system time
