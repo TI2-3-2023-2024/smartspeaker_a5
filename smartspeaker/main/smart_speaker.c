@@ -31,10 +31,6 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 
-#include <esp_log.h>
-#include <esp_sntp.h>
-#include <sys/time.h>
-
 static const char *TAG = "MAIN";
 
 static audio_board_handle_t board_handle;
@@ -99,9 +95,8 @@ static void app_init(void) {
 	wifi_wait();
 
 	/* Initialise SNTP*/
-	ESP_LOGI(TAG, "Initialize SNTP");
+	ESP_LOGI(TAG, "Initializing NTP");
 	sntp_mod_init();
-	fetch_current_time();
 }
 
 static void app_free(void) {
