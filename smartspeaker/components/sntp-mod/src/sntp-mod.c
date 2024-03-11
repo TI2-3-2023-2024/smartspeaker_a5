@@ -26,7 +26,6 @@ void sntp_mod_init(void) {
 	while (sntp_get_sync_status() == SNTP_SYNC_STATUS_RESET) {
 		vTaskDelay(2000 / portTICK_PERIOD_MS);
 		ESP_LOGI(TAG, "Fetching time...");
-
 	}
 	print_system_time();
 }
@@ -42,6 +41,6 @@ void print_system_time(void) {
 	localtime_r(&now, &timeinfo);
 
 	// Print local time
-	ESP_LOGI(TAG, "Local time: %02d:%02d:%02d\n", timeinfo.tm_hour, timeinfo.tm_min,
-	       timeinfo.tm_sec);
+	ESP_LOGI(TAG, "Local time: %02d:%02d:%02d\n", timeinfo.tm_hour,
+	         timeinfo.tm_min, timeinfo.tm_sec);
 }

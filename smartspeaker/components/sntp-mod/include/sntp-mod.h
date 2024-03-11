@@ -1,7 +1,6 @@
 #ifndef SNTP_H
 #define SNTP_H
 
-
 /// @brief Sets settings for sntp and synchronizes the time
 void sntp_mod_init(void);
 
