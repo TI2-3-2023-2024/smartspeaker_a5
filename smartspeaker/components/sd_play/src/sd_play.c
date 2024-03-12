@@ -74,6 +74,9 @@ void sd_play_init_sdcard_clock(audio_event_iface_handle_t evt,
 }
 
 esp_err_t sd_play_deinit_sdcard_clock(void) {
+
+	audio_pipeline_remove_listener(pipeline);
+
 	audio_pipeline_stop(pipeline);
 	audio_pipeline_wait_for_stop(pipeline);
 	audio_pipeline_terminate(pipeline);
@@ -81,8 +84,6 @@ esp_err_t sd_play_deinit_sdcard_clock(void) {
 	audio_pipeline_unregister(pipeline, fatfs_stream_reader);
 	audio_pipeline_unregister(pipeline, mp3_decoder);
 	audio_pipeline_unregister(pipeline, i2s_stream_writer);
-
-	audio_pipeline_remove_listener(pipeline);
 
 	audio_pipeline_deinit(pipeline);
 	audio_element_deinit(fatfs_stream_reader);
