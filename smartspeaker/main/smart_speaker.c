@@ -1,4 +1,5 @@
 /* internal components */
+#include "audio_analyser.h"
 #include "bt_sink.h"
 #include "lcd.h"
 #include "led_controller_commands.h"
@@ -34,6 +35,25 @@
 /* freertos */
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+
+#define GOERTZEL_NR_FREQS                                                      \
+	((sizeof GOERTZEL_DETECT_FREQS) / (sizeof GOERTZEL_DETECT_FREQS[0]))
+
+// Sample rate in [Hz]
+#define GOERTZEL_SAMPLE_RATE_HZ 8000
+
+// Block length in [ms]
+#define GOERTZEL_FRAME_LENGTH_MS 50
+
+// Buffer length in samples
+#define GOERTZEL_BUFFER_LENGTH                                                 \
+	(GOERTZEL_FRAME_LENGTH_MS * GOERTZEL_SAMPLE_RATE_HZ / 1000)
+
+// Detect a tone when log manitude is above this value
+#define GOERTZEL_DETECTION_THRESHOLD 30.0f
+
+// Audio capture sample rate [Hz]
+#define AUDIO_SAMPLE_RATE 8000
 
 static const char *TAG = "MAIN";
 
@@ -88,8 +108,11 @@ static void app_init(void) {
 	wifi_wait();
 
 	/* Initialise SNTP*/
-	ESP_LOGI(TAG, "Initializing NTP");
+	ESP_LOGI(TAG, "Initialise NTP");
 	sntp_mod_init();
+
+	ESP_LOGI(TAG, "Initialise audio analyser");
+	audio_analyser_init();
 
 #ifdef CONFIG_LCD_ENABLED
 	xTaskCreate(&lcd1602_task, "lcd1602_task", 4096, evt, 5, NULL);
@@ -142,6 +165,9 @@ void app_main() {
 
 	// Initialise component dependencies
 	app_init();
+
+	xTaskCreate(&tone_detection_task, "tone_detection_task", 4096, NULL, 5,
+	            NULL);
 
 	player_volume = 50;
 #ifdef CONFIG_LED_CONTROLLER_ENABLED

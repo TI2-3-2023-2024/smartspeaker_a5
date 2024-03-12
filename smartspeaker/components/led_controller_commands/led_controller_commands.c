@@ -40,7 +40,7 @@ static void send_command(uint8_t *message, size_t len) {
 
 void led_controller_turn_on_white_delay(void) {
 	for (int i = 0; i < 30; i++) {
-		uint8_t message[] = { LED_ON, i, 25, 25, 25 };
+		uint8_t message[] = { LED_ON, i, 100, 100, 100 };
 		send_command(message, ARRAY_SIZE(message));
 		vTaskDelay(50 / portTICK_PERIOD_MS);
 	}
