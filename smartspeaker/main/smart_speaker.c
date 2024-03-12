@@ -21,11 +21,11 @@
 #include "raw_stream.h"
 
 /* peripherals */
+#include "driver/gpio.h"
 #include "esp_peripherals.h"
 #include "periph_adc_button.h"
 #include "periph_button.h"
 #include "periph_touch.h"
-#include "driver/gpio.h"
 
 /* goertzel */
 #include "filter_resample.h"
@@ -66,6 +66,7 @@ static audio_board_handle_t board_handle;
 static esp_periph_set_handle_t periph_set;
 static audio_event_iface_handle_t evt;
 static audio_element_handle_t i2s_stream_writer;
+static audio_element_handle_t i2s_stream_reader;
 static audio_element_handle_t resample_filter;
 static audio_element_handle_t raw_reader;
 static audio_pipeline_handle_t pipeline;
@@ -96,6 +97,17 @@ static void app_init(void) {
 	audio_hal_ctrl_codec(board_handle->audio_hal, AUDIO_HAL_CODEC_MODE_DECODE,
 	                     AUDIO_HAL_CTRL_START);
 
+	ESP_LOGI(TAG, "Create i2s stream to write data to codec chip");
+	i2s_stream_cfg_t i2s_cfg = I2S_STREAM_CFG_DEFAULT();
+	i2s_cfg.type             = AUDIO_STREAM_WRITER;
+	i2s_stream_writer        = i2s_stream_init(&i2s_cfg);
+
+	ESP_LOGI(TAG, "Create i2s stream to read data from codec chip");
+	i2s_stream_cfg_t i2s_cfg_reader = I2S_STREAM_CFG_DEFAULT();
+	i2s_cfg_reader.type             = AUDIO_STREAM_READER;
+	i2s_stream_reader               = i2s_stream_init(&i2s_cfg_reader);
+
+	/* Initialise peripherals */
 	ESP_LOGI(TAG, "Initialise peripherals");
 	esp_periph_config_t periph_cfg = DEFAULT_ESP_PERIPH_SET_CONFIG();
 	periph_set                     = esp_periph_set_init(&periph_cfg);
@@ -144,6 +156,7 @@ static void app_init(void) {
  * Use a logarithm for the magnitude
  */
 static void detect_freq(int target_freq, float magnitude) {
+	ESP_LOGI(TAG, "detecting new frequency");
 	float logMagnitude = 10.0f * log10f(magnitude);
 	if (logMagnitude > GOERTZEL_DETECTION_THRESHOLD) {
 		ESP_LOGI(
@@ -179,53 +192,49 @@ esp_err_t tone_detection_task(void) {
 		ESP_ERROR_CHECK(error);
 	}
 
-	ESP_LOGI(TAG, "Create audio elements for pipeline");
-
 	ESP_LOGI(TAG, "Register audio elements to pipeline");
-	audio_pipeline_register(pipeline, i2s_stream_writer, "i2s");
+	audio_pipeline_register(pipeline, i2s_stream_reader, "i2s_reader");
 	audio_pipeline_register(pipeline, resample_filter, "rsp_filter");
 	audio_pipeline_register(pipeline, raw_reader, "raw");
 
 	ESP_LOGI(TAG, "Link audio elements together to make pipeline ready");
-	const char *link_tag[3] = { "i2s", "rsp_filter", "raw" };
-	audio_pipeline_link(pipeline, &link_tag[0], 3);
+	const char *link_tag[3] = { "i2s_reader", "rsp_filter", "raw" };
+	audio_pipeline_link(pipeline, link_tag, 3);
 
 	ESP_LOGI(TAG, "Start pipeline");
 	audio_pipeline_run(pipeline);
 
 	while (1) {
-		raw_stream_read(raw_reader, (char *)raw_buffer,
+		vTaskDelay(pdMS_TO_TICKS(500)); // Delay for half a second
+		raw_stream_read(i2s_stream_reader, (char *)raw_buffer,
 		                GOERTZEL_BUFFER_LENGTH * sizeof(int16_t));
+
+		// ESP_LOGI(TAG, "Raw Data: ");
+		// for (int j = 0; j < GOERTZEL_BUFFER_LENGTH; j++) {
+		// 	printf("%d ", raw_buffer[j]);
+		// }
+		// printf("\r\n");
+
 		for (int f = 0; f < GOERTZEL_NR_FREQS; f++) {
+
 			float magnitude;
+
+			// ESP_LOGI(TAG, "Raw Data: ");
+			// for (int j = 0; j < GOERTZEL_BUFFER_LENGTH; j++) {
+			// 	printf("%d ", raw_buffer[j]);
+			// }
+			// printf("\r\n");
 
 			esp_err_t error = goertzel_filter_process(
 			    &filters_data[f], raw_buffer, GOERTZEL_BUFFER_LENGTH);
 			ESP_ERROR_CHECK(error);
 
 			if (goertzel_filter_new_magnitude(&filters_data[f], &magnitude)) {
+				ESP_LOGI(TAG, "new magnitude");
 				detect_freq(filters_cfg[f].target_freq, magnitude);
 			}
 		}
 	}
-
-	// Clean up (if we somehow leave the while loop, that is...)
-	ESP_LOGI(TAG, "Deallocate raw sample buffer memory");
-	free(raw_buffer);
-
-	audio_pipeline_stop(pipeline);
-	audio_pipeline_wait_for_stop(pipeline);
-	audio_pipeline_terminate(pipeline);
-
-	audio_pipeline_unregister(pipeline, i2s_stream_writer);
-	audio_pipeline_unregister(pipeline, resample_filter);
-	audio_pipeline_unregister(pipeline, raw_reader);
-
-	audio_pipeline_deinit(pipeline);
-
-	audio_element_deinit(i2s_stream_writer);
-	audio_element_deinit(resample_filter);
-	audio_element_deinit(raw_reader);
 }
 
 static void app_free(void) {
@@ -276,14 +285,22 @@ void app_main() {
 	app_init();
 
 	gpio_pad_select_gpio(22);
-    gpio_set_direction(22, GPIO_MODE_OUTPUT);
+	gpio_set_direction(22, GPIO_MODE_OUTPUT);
 
-	tone_detection_task();
+	gpio_set_level(22, 1);
 
-	//code below doesnt get executed because infinite loop in tone_detection_task();
-	//test pls
+	vTaskDelay(pdMS_TO_TICKS(500)); // Delay for half a second
 
-	xTaskCreate(&lcd1602_task, "lcd1602_task", 4096, NULL, 5, NULL);
+	gpio_set_level(22, 0);
+
+	app_init();
+
+	xTaskCreate(&tone_detection_task, "tone_detection_task", 4096, NULL, 5,
+	            NULL);
+
+	// code below doesnt get executed because infinite loop in
+	// tone_detection_task(); test pls
+
 	pipeline_init(bt_pipeline_init, i2s_stream_writer);
 
 	player_volume = 50;
