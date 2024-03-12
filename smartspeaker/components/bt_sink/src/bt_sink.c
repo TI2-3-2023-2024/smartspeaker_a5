@@ -81,8 +81,10 @@ esp_err_t init_bt(audio_element_handle_t *elems, size_t count,
 	audio_event_iface_cfg_t evt_cfg = AUDIO_EVENT_IFACE_DEFAULT_CFG();
 	evt                             = audio_event_iface_init(&evt_cfg);
 
-	esp_err_t err = audio_pipeline_set_listener(pipeline, evt);
-	ESP_RETURN_ON_ERROR(audio_pipeline_run(pipeline), TAG, "");
+	ESP_RETURN_ON_ERROR(audio_pipeline_set_listener(pipeline, evt), TAG,
+	                    "audio_pipeline_set_listener failed");
+	ESP_RETURN_ON_ERROR(audio_pipeline_run(pipeline), TAG,
+	                    "audio_pipeline_run failed");
 
 	return ESP_OK;
 }
