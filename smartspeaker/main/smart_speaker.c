@@ -21,7 +21,6 @@
 #include "raw_stream.h"
 
 /* peripherals */
-#include "driver/gpio.h"
 #include "esp_peripherals.h"
 #include "periph_adc_button.h"
 #include "periph_button.h"
@@ -55,10 +54,10 @@
 	(GOERTZEL_FRAME_LENGTH_MS * GOERTZEL_SAMPLE_RATE_HZ / 1000)
 
 // Detect a tone when log manitude is above this value
-#define GOERTZEL_DETECTION_THRESHOLD 40.0f
+#define GOERTZEL_DETECTION_THRESHOLD 30.0f
 
 // Audio capture sample rate [Hz]
-#define AUDIO_SAMPLE_RATE 48000
+#define AUDIO_SAMPLE_RATE 8000
 
 static const char *TAG = "MAIN";
 
@@ -156,14 +155,16 @@ static void app_init(void) {
  * Use a logarithm for the magnitude
  */
 static void detect_freq(int target_freq, float magnitude) {
-	ESP_LOGI(TAG, "detecting new frequency");
 	float logMagnitude = 10.0f * log10f(magnitude);
 	if (logMagnitude > GOERTZEL_DETECTION_THRESHOLD) {
 		ESP_LOGI(
 		    TAG,
 		    "Detection at frequency %d Hz (magnitude %.2f, log magnitude %.2f)",
 		    target_freq, magnitude, logMagnitude);
-		gpio_set_level(22, 1);
+		led_controller_turn_off();
+
+		vTaskDelay(pdMS_TO_TICKS(100)); // Delay for half a second
+		led_controller_turn_on_white_delay();
 	}
 }
 
@@ -205,32 +206,17 @@ esp_err_t tone_detection_task(void) {
 	audio_pipeline_run(pipeline);
 
 	while (1) {
-		vTaskDelay(pdMS_TO_TICKS(500)); // Delay for half a second
+		vTaskDelay(pdMS_TO_TICKS(500));
 		raw_stream_read(i2s_stream_reader, (char *)raw_buffer,
 		                GOERTZEL_BUFFER_LENGTH * sizeof(int16_t));
 
-		// ESP_LOGI(TAG, "Raw Data: ");
-		// for (int j = 0; j < GOERTZEL_BUFFER_LENGTH; j++) {
-		// 	printf("%d ", raw_buffer[j]);
-		// }
-		// printf("\r\n");
-
 		for (int f = 0; f < GOERTZEL_NR_FREQS; f++) {
-
 			float magnitude;
-
-			// ESP_LOGI(TAG, "Raw Data: ");
-			// for (int j = 0; j < GOERTZEL_BUFFER_LENGTH; j++) {
-			// 	printf("%d ", raw_buffer[j]);
-			// }
-			// printf("\r\n");
-
 			esp_err_t error = goertzel_filter_process(
 			    &filters_data[f], raw_buffer, GOERTZEL_BUFFER_LENGTH);
 			ESP_ERROR_CHECK(error);
 
 			if (goertzel_filter_new_magnitude(&filters_data[f], &magnitude)) {
-				ESP_LOGI(TAG, "new magnitude");
 				detect_freq(filters_cfg[f].target_freq, magnitude);
 			}
 		}
@@ -295,11 +281,9 @@ void app_main() {
 
 	app_init();
 
+	// Create a task to run the audio analysing algorithm
 	xTaskCreate(&tone_detection_task, "tone_detection_task", 4096, NULL, 5,
 	            NULL);
-
-	// code below doesnt get executed because infinite loop in
-	// tone_detection_task(); test pls
 
 	pipeline_init(bt_pipeline_init, i2s_stream_writer);
 
