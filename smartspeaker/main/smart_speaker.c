@@ -132,6 +132,9 @@ void switch_stream() {
 }
 
 void app_main() {
+	/* ESP_GOTO_ON_ERROR stores the return value here. */
+	UNUSED int ret;
+
 	// Initialise component dependencies
 	app_init();
 	xTaskCreate(&lcd1602_task, "lcd1602_task", 4096, NULL, 5, NULL);
@@ -152,17 +155,19 @@ void app_main() {
 			break;
 		}
 		audio_event_iface_msg_t msg;
-		ESP_RETURN_ON_ERROR(audio_event_iface_listen(evt, &msg, portMAX_DELAY),
-		                    TAG, "Event interface error");
+		ESP_GOTO_ON_ERROR(audio_event_iface_listen(evt, &msg, portMAX_DELAY),
+		                  exit, TAG, "Event interface error");
 
 		ESP_LOGI(TAG,
 		         "Received event with cmd: %d and source_type %d and data %p",
 		         msg.cmd, msg.source_type, msg.data);
 
 		if (use_radio) {
-			ESP_RETURN_ON_ERROR(radio_run(&msg), TAG, "Radio handler failed");
+			ESP_GOTO_ON_ERROR(radio_run(&msg), exit, TAG,
+			                  "Radio handler failed");
 		} else {
-			ESP_RETURN_ON_ERROR(bt_run(&msg), TAG, "Bluetooth handler failed");
+			ESP_GOTO_ON_ERROR(bt_run(&msg), exit, TAG,
+			                  "Bluetooth handler failed");
 		}
 
 		if ((msg.source_type == PERIPH_ID_TOUCH ||
@@ -211,6 +216,7 @@ void app_main() {
 		}
 	}
 
+exit:
 	// Deinitialise component dependencies
 	app_free();
 }
