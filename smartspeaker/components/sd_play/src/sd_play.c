@@ -73,8 +73,7 @@ void sd_play_init_sdcard_clock(audio_event_iface_handle_t evt,
 	audio_pipeline_set_listener(pipeline, evt);
 }
 
-esp_err_t sd_play_deinit_sdcard_clock(audio_event_iface_handle_t evt,
-                                      esp_periph_set_handle_t periph_set) {
+esp_err_t sd_play_deinit_sdcard_clock(void) {
 	audio_pipeline_stop(pipeline);
 	audio_pipeline_wait_for_stop(pipeline);
 	audio_pipeline_terminate(pipeline);
