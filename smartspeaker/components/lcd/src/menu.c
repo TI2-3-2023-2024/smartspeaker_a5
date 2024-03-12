@@ -1,13 +1,13 @@
 #include "menu.h"
 #include "lcd.h"
-
 #include "lcd_util.h"
-#include <stdlib.h>
+#include "utils/macro.h"
 
-#include <esp_log.h>
+#include "esp_log.h"
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include <stdlib.h>
 
 int isPartyModeOn = 0;
 int isBLuetoothOn = 0;

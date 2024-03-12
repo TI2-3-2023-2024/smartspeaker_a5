@@ -4,6 +4,7 @@
 #include "led_controller_commands.h"
 #include "radio.h"
 #include "sntp-mod.h"
+#include "utils/macro.h"
 #include "wifi.h"
 
 #include "audio_event_iface.h"
@@ -32,8 +33,6 @@
 /* freertos */
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
-
-#define ARRAY_SIZE(a) ((sizeof a) / (sizeof a[0]))
 
 static const char *TAG = "MAIN";
 
