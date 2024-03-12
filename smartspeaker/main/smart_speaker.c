@@ -36,25 +36,6 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 
-#define GOERTZEL_NR_FREQS                                                      \
-	((sizeof GOERTZEL_DETECT_FREQS) / (sizeof GOERTZEL_DETECT_FREQS[0]))
-
-// Sample rate in [Hz]
-#define GOERTZEL_SAMPLE_RATE_HZ 8000
-
-// Block length in [ms]
-#define GOERTZEL_FRAME_LENGTH_MS 50
-
-// Buffer length in samples
-#define GOERTZEL_BUFFER_LENGTH                                                 \
-	(GOERTZEL_FRAME_LENGTH_MS * GOERTZEL_SAMPLE_RATE_HZ / 1000)
-
-// Detect a tone when log manitude is above this value
-#define GOERTZEL_DETECTION_THRESHOLD 30.0f
-
-// Audio capture sample rate [Hz]
-#define AUDIO_SAMPLE_RATE 8000
-
 static const char *TAG = "MAIN";
 
 static audio_board_handle_t board_handle;

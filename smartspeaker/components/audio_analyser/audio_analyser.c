@@ -43,7 +43,6 @@ static const int GOERTZEL_DETECT_FREQS[] = { 880 };
 
 static const char *TAG = "AUDIO_ANALYSER";
 
-static audio_event_iface_handle_t evt;
 static audio_element_handle_t i2s_stream_reader;
 static audio_element_handle_t resample_filter;
 static audio_element_handle_t raw_reader;
@@ -76,8 +75,7 @@ esp_err_t tone_detection_task(void) {
 	         GOERTZEL_NR_FREQS);
 
 	ESP_LOGI(TAG, "Create raw sample buffer");
-	int16_t *raw_buffer =
-	    (int16_t *)malloc((GOERTZEL_BUFFER_LENGTH * sizeof(int16_t)));
+	int16_t *raw_buffer = malloc(sizeof *raw_buffer * GOERTZEL_BUFFER_LENGTH);
 	if (raw_buffer == NULL) {
 		ESP_LOGE(TAG, "Memory allocation for raw sample buffer failed");
 		return ESP_FAIL;
@@ -88,9 +86,7 @@ esp_err_t tone_detection_task(void) {
 		filters_cfg[f].sample_rate   = GOERTZEL_SAMPLE_RATE_HZ;
 		filters_cfg[f].target_freq   = GOERTZEL_DETECT_FREQS[f];
 		filters_cfg[f].buffer_length = GOERTZEL_BUFFER_LENGTH;
-		esp_err_t error =
-		    goertzel_filter_setup(&filters_data[f], &filters_cfg[f]);
-		ESP_ERROR_CHECK(error);
+		ESP_RETURN_ON_ERROR(goertzel_filter_setup(&filters_data[f], &filters_cfg[f]), TAG, "");
 	}
 
 	ESP_LOGI(TAG, "Register audio elements to pipeline");
