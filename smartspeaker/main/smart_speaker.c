@@ -89,6 +89,10 @@ static void app_init(void) {
 	/* Initialise SNTP*/
 	ESP_LOGI(TAG, "Initializing NTP");
 	sntp_mod_init();
+
+#ifdef CONFIG_LCD_ENABLED
+	xTaskCreate(&lcd1602_task, "lcd1602_task", 4096, NULL, 5, NULL);
+#endif
 }
 
 static void app_free(void) {
@@ -137,7 +141,6 @@ void app_main() {
 
 	// Initialise component dependencies
 	app_init();
-	xTaskCreate(&lcd1602_task, "lcd1602_task", 4096, NULL, 5, NULL);
 
 	player_volume = 50;
 #ifdef CONFIG_LED_CONTROLLER_ENABLED

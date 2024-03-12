@@ -31,20 +31,25 @@ menu "LCD"
     config LCD_NUM_ROWS
         int "Number of rows that the lcd has"
         default 4
-        help 
+        help
             This is the number of rows that the LCD1602 has.
 
     config LCD_NUM_COLUMNS
         int "Number of columns that the lcd has"
         default 40
-        help 
-            This is the number of columns that the LCD1602 has. 
+        help
+            This is the number of columns that the LCD1602 has.
 
     config LCD_NUM_VISIBLE_COLUMNS
         int "Number of visible colums the lcd is able to display right now"
         default 20
-        help 
+        help
             This is the number of visible colums that the LCD1602 has right now.
 
-    endmenu
-    
+    config LCD_ENABLED
+        bool "LCD status"
+        default y
+        help
+            Enable or disable the lcd.
+
+endmenu
