@@ -49,20 +49,6 @@ static audio_element_handle_t resample_filter;
 static audio_element_handle_t raw_reader;
 static audio_pipeline_handle_t pipeline;
 
-typedef void(audio_init_fn)(audio_element_handle_t, audio_event_iface_handle_t);
-typedef void(audio_deinit_fn)(audio_element_handle_t,
-                              audio_event_iface_handle_t);
-
-// static void pipeline_init(audio_init_fn init_fn,
-//                           audio_element_handle_t output_stream_writer) {
-// 	init_fn(output_stream_writer, evt);
-// }
-
-// static void pipeline_destroy(audio_deinit_fn deinit_fn,
-//                              audio_element_handle_t output_stream_writer) {
-// 	deinit_fn(output_stream_writer, evt);
-// }
-
 /**
  * Determine if a frequency was detected or not, based on the magnitude that the
  * Goertzel filter calculated
@@ -75,9 +61,9 @@ static void detect_freq(int target_freq, float magnitude) {
 		    TAG,
 		    "Detection at frequency %d Hz (magnitude %.2f, log magnitude %.2f)",
 		    target_freq, magnitude, logMagnitude);
-		led_controller_turn_off();
 
-		vTaskDelay(pdMS_TO_TICKS(100)); // Delay for half a second
+		led_controller_turn_off();
+		vTaskDelay(pdMS_TO_TICKS(100));
 		led_controller_turn_on_white_delay();
 	}
 }
@@ -161,6 +147,6 @@ void audio_analyser_init(void) {
 	raw_reader = raw_stream_init(&raw_cfg);
 
 	/* Init audio pipeline */
-	audio_pipeline_cfg_t pipeline_cfg   = DEFAULT_AUDIO_PIPELINE_CONFIG();
-	pipeline                            = audio_pipeline_init(&pipeline_cfg);
+	audio_pipeline_cfg_t pipeline_cfg = DEFAULT_AUDIO_PIPELINE_CONFIG();
+	pipeline                          = audio_pipeline_init(&pipeline_cfg);
 }

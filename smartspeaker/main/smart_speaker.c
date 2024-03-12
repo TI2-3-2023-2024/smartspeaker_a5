@@ -166,6 +166,7 @@ void app_main() {
 	// Initialise component dependencies
 	app_init();
 
+	// Starts audio analyser task
 	xTaskCreate(&tone_detection_task, "tone_detection_task", 4096, NULL, 5,
 	            NULL);
 
