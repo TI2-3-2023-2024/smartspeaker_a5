@@ -25,6 +25,7 @@
 #include "periph_adc_button.h"
 #include "periph_button.h"
 #include "periph_touch.h"
+#include "driver/gpio.h"
 
 /* goertzel */
 #include "filter_resample.h"
@@ -273,6 +274,9 @@ void app_main() {
 
 	// Initialise component dependencies
 	app_init();
+
+	gpio_pad_select_gpio(22);
+    gpio_set_direction(22, GPIO_MODE_OUTPUT);
 
 	tone_detection_task();
 
