@@ -3,6 +3,8 @@
 #include "i2s_stream.h"
 #include "mp3_decoder.h"
 
+#include "esp_peripherals.h"
+
 #include "sd_play.h"
 
 #include "input_key_service.h"
@@ -28,7 +30,7 @@ void play_audio_through_int(int number) {
 	char urlToAudioFile[50];
 	snprintf(urlToAudioFile, 50, "/sdcard/nl/%d.mp3", number);
 
-	playAudioThroughString(urlToAudioFile);
+	play_audio_through_string(urlToAudioFile);
 }
 
 void sd_play_init_sdcard(esp_periph_set_handle_t periph_set) {
