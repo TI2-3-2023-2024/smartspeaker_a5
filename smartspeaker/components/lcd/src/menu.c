@@ -11,6 +11,13 @@
 #include "freertos/task.h"
 #include <stdlib.h>
 
+#define SEND_UI_CMD(command)                                                   \
+	audio_event_iface_sendout(evt_ptr, &(audio_event_iface_msg_t){             \
+	                                       .cmd         = 6969,                \
+	                                       .source_type = 6969,                \
+	                                       .data        = (void *)(command),   \
+	                                   });
+
 static int isPartyModeOn = 0;
 static int isBLuetoothOn = 0;
 static int isRadioOn     = 0;
@@ -30,14 +37,7 @@ static void lcd1602_task_deinit();
 static void bluetoothOnOff(void *args) {
 	ESP_LOGI(TAG, "Audio output switched (in menu bluetooth)");
 
-	enum ui_cmd ui_command      = UIC_SWITCH_OUTPUT;
-	audio_event_iface_msg_t msg = {
-		.cmd         = 6969,
-		.source_type = 6969,
-		.data        = (void *)ui_command,
-	};
-
-	audio_event_iface_sendout(evt_ptr, &msg);
+	SEND_UI_CMD(UIC_SWITCH_OUTPUT);
 }
 
 /**
@@ -47,15 +47,7 @@ static void partyModeOnOff(void *args) {
 	isPartyModeOn = !isPartyModeOn;
 	ESP_LOGI(TAG, "party mode %d", isPartyModeOn);
 
-	enum ui_cmd ui_command =
-	    isPartyModeOn ? UIC_PARTY_MODE_ON : UIC_PARTY_MODE_OFF;
-	audio_event_iface_msg_t msg = {
-		.cmd         = 6969,
-		.source_type = 6969,
-		.data        = (void *)ui_command,
-	};
-
-	audio_event_iface_sendout(evt_ptr, &msg);
+	SEND_UI_CMD(isPartyModeOn ? UIC_PARTY_MODE_ON : UIC_PARTY_MODE_OFF);
 }
 
 /**
@@ -64,14 +56,7 @@ static void partyModeOnOff(void *args) {
 static void radioOnOff(void *args) {
 	ESP_LOGI(TAG, "Audio output switched (in menu radio)");
 
-	enum ui_cmd ui_command      = UIC_SWITCH_OUTPUT;
-	audio_event_iface_msg_t msg = {
-		.cmd         = 6969,
-		.source_type = 6969,
-		.data        = (void *)ui_command,
-	};
-
-	audio_event_iface_sendout(evt_ptr, &msg);
+	SEND_UI_CMD(UIC_SWITCH_OUTPUT);
 }
 
 /**
@@ -80,14 +65,7 @@ static void radioOnOff(void *args) {
 static void changeChannelDown(void *args) {
 	ESP_LOGI(TAG, "channel down");
 
-	enum ui_cmd ui_command      = UIC_CHANNEL_DOWN;
-	audio_event_iface_msg_t msg = {
-		.cmd         = 6969,
-		.source_type = 6969,
-		.data        = (void *)ui_command,
-	};
-
-	audio_event_iface_sendout(evt_ptr, &msg);
+	SEND_UI_CMD(UIC_CHANNEL_DOWN);
 }
 
 /**
@@ -96,14 +74,7 @@ static void changeChannelDown(void *args) {
 static void changeChannelUp(void *args) {
 	ESP_LOGI(TAG, "channel up");
 
-	enum ui_cmd ui_command      = UIC_CHANNEL_UP;
-	audio_event_iface_msg_t msg = {
-		.cmd         = 6969,
-		.source_type = 6969,
-		.data        = (void *)ui_command,
-	};
-
-	audio_event_iface_sendout(evt_ptr, &msg);
+	SEND_UI_CMD(UIC_CHANNEL_UP);
 }
 
 /**
@@ -112,14 +83,7 @@ static void changeChannelUp(void *args) {
 static void plusVolume(void *args) {
 	ESP_LOGI(TAG, "volume up");
 
-	enum ui_cmd ui_command      = UIC_VOLUME_UP;
-	audio_event_iface_msg_t msg = {
-		.cmd         = 6969,
-		.source_type = 6969,
-		.data        = (void *)ui_command,
-	};
-
-	audio_event_iface_sendout(evt_ptr, &msg);
+	SEND_UI_CMD(UIC_VOLUME_UP);
 }
 
 /**
@@ -128,14 +92,7 @@ static void plusVolume(void *args) {
 static void minVolume(void *args) {
 	ESP_LOGI(TAG, "volume down");
 
-	enum ui_cmd ui_command      = UIC_VOLUME_DOWN;
-	audio_event_iface_msg_t msg = {
-		.cmd         = 6969,
-		.source_type = 6969,
-		.data        = (void *)ui_command,
-	};
-
-	audio_event_iface_sendout(evt_ptr, &msg);
+	SEND_UI_CMD(UIC_VOLUME_DOWN);
 }
 
 static void screen_draw_menu(struct screen *screen, int redraw);
