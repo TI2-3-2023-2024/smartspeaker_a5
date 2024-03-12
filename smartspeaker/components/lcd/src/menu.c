@@ -13,10 +13,7 @@ int isPartyModeOn = 0;
 int isBLuetoothOn = 0;
 int isRadioOn     = 0;
 
-static const char *TAG     = "MENU";
-static const char *btnOkTag   = "Button ok";
-static const char *btnUpTag   = "Button up";
-static const char *btnDownTag = "Button down";
+static const char *TAG = "MENU";
 
 /**
  * @brief Turns bluetooth on when off and off when on.
@@ -285,9 +282,9 @@ void lcd1602_task(void *pvParameter) {
 		if (btnUp != prevBtnUp || btnOk != prevBtnOk ||
 		    btnDown != prevBtnDown) {
 
-			ESP_LOGI(btnUpTag, "Button Up: %d", btnUp);
-			ESP_LOGI(btnDownTag, "Button Down: %d", btnDown);
-			ESP_LOGI(btnOkTag, "Button OK: %d", btnOk);
+			ESP_LOGI(TAG, "Button Up: %d", btnUp);
+			ESP_LOGI(TAG, "Button Down: %d", btnDown);
+			ESP_LOGI(TAG, "Button OK: %d", btnOk);
 
 			prevBtnUp   = btnUp;
 			prevBtnOk   = btnOk;
