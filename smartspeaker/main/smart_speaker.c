@@ -3,10 +3,10 @@
 #include "lcd.h"
 #include "led_controller_commands.h"
 #include "radio.h"
+#include "sd_play.h"
 #include "sntp-mod.h"
 #include "utils/macro.h"
 #include "wifi.h"
-#include "sd_play.h"
 
 #include "audio_event_iface.h"
 #include "board.h"
@@ -138,7 +138,7 @@ void switch_stream() {
 
 void app_main() {
 	/* ESP_GOTO_ON_ERROR stores the return value here. */
-	UNUSED int ret;
+	UNUSED esp_err_t ret;
 
 	// Initialise component dependencies
 	app_init();
@@ -154,24 +154,52 @@ void app_main() {
 	/* Main eventloop */
 	ESP_LOGI(TAG, "Entering main eventloop");
 	for (;;) {
-		if (evt == NULL) {
-			ESP_LOGE(TAG, "Event was null!!!!");
-			break;
-		}
 		audio_event_iface_msg_t msg;
 		ESP_GOTO_ON_ERROR(audio_event_iface_listen(evt, &msg, portMAX_DELAY),
-		                  exit, TAG, "Event interface error");
+		                  exit, TAG, "Event listening failed");
 
-		ESP_LOGI(TAG,
-		         "Received event with cmd: %d and source_type %d and data %p",
+		ESP_LOGI(TAG, "Received event with cmd: %d, source_type %d and data %p",
 		         msg.cmd, msg.source_type, msg.data);
 
 		if (use_radio) {
-			ESP_GOTO_ON_ERROR(radio_run(&msg), exit, TAG,
-			                  "Radio handler failed");
+			ESP_GOTO_ON_ERROR(radio_run(&msg), exit, TAG, "Radio run failed");
 		} else {
-			ESP_GOTO_ON_ERROR(bt_run(&msg), exit, TAG,
-			                  "Bluetooth handler failed");
+			ESP_GOTO_ON_ERROR(bt_run(&msg), exit, TAG, "Bluetooth run failed");
+		}
+
+		// Event from LCD buttons/UI
+		if (msg.cmd == 6969 && msg.source_type == 6969) {
+			enum ui_cmd ui_command = (int)msg.data;
+			ESP_LOGI(TAG, "Received custom event: %d", ui_command);
+
+			if (ui_command == UIC_SWITCH_OUTPUT) {
+				switch_stream();
+			} else if (ui_command == UIC_VOLUME_UP) {
+				player_volume += 10;
+				if (player_volume > 100) { player_volume = 100; }
+#ifdef CONFIG_LED_CONTROLLER_ENABLED
+				if (use_led_strip == 1) {
+					led_controller_set_leds_volume(player_volume);
+				}
+#endif
+				audio_hal_set_volume(board_handle->audio_hal, player_volume);
+			} else if (ui_command == UIC_VOLUME_DOWN) {
+				player_volume -= 10;
+				if (player_volume < 0) { player_volume = 0; }
+#ifdef CONFIG_LED_CONTROLLER_ENABLED
+				if (use_led_strip == 1) {
+					led_controller_set_leds_volume(player_volume);
+				}
+#endif
+				audio_hal_set_volume(board_handle->audio_hal, player_volume);
+			} else if (ui_command == UIC_CHANNEL_UP && use_radio) {
+				channel_up();
+			} else if (ui_command == UIC_CHANNEL_DOWN && use_radio) {
+				channel_down();
+			} else if (ui_command == UIC_PARTY_MODE_ON ||
+			           ui_command == UIC_PARTY_MODE_OFF) {
+				ESP_LOGW(TAG, "Party mode feature not yet implemented");
+			}
 		}
 
 		if ((msg.source_type == PERIPH_ID_TOUCH ||
@@ -221,6 +249,8 @@ void app_main() {
 	}
 
 exit:
+	if (ret != ESP_OK)
+		ESP_LOGE(TAG, "Error code %d: %s", ret, esp_err_to_name(ret));
 	// Deinitialise component dependencies
 	app_free();
 }

@@ -3,8 +3,7 @@
 #pragma once
 
 enum ui_cmd {
-	UIC_SWITCH_TO_RADIO = 0,
-	UIC_SWITCH_TO_BT,
+	UIC_SWITCH_OUTPUT = 0,
 	UIC_VOLUME_UP,
 	UIC_VOLUME_DOWN,
 	UIC_CHANNEL_UP,

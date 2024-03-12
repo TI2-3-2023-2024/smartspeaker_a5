@@ -18,12 +18,26 @@ static int isRadioOn     = 0;
 static audio_event_iface_handle_t evt_ptr = NULL;
 static const char *TAG                    = "MENU";
 
+// NOTE: Do not use this variable to send out events.
+// It will not work.
+static audio_event_iface_handle_t global_evt = NULL;
+
+static void lcd1602_task_deinit();
+
 /**
  * @brief Turns bluetooth on when off and off when on.
  */
 static void bluetoothOnOff(void *args) {
-	isBLuetoothOn = !isBLuetoothOn;
-	ESP_LOGI(TAG, "bluetooth %d", isBLuetoothOn);
+	ESP_LOGI(TAG, "Audio output switched (in menu bluetooth)");
+
+	enum ui_cmd ui_command      = UIC_SWITCH_OUTPUT;
+	audio_event_iface_msg_t msg = {
+		.cmd         = 6969,
+		.source_type = 6969,
+		.data        = (void *)ui_command,
+	};
+
+	audio_event_iface_sendout(evt_ptr, &msg);
 }
 
 /**
@@ -32,25 +46,65 @@ static void bluetoothOnOff(void *args) {
 static void partyModeOnOff(void *args) {
 	isPartyModeOn = !isPartyModeOn;
 	ESP_LOGI(TAG, "party mode %d", isPartyModeOn);
+
+	enum ui_cmd ui_command =
+	    isPartyModeOn ? UIC_PARTY_MODE_ON : UIC_PARTY_MODE_OFF;
+	audio_event_iface_msg_t msg = {
+		.cmd         = 6969,
+		.source_type = 6969,
+		.data        = (void *)ui_command,
+	};
+
+	audio_event_iface_sendout(evt_ptr, &msg);
 }
 
 /**
  * @brief Turns radio on when off and off when on.
  */
 static void radioOnOff(void *args) {
-	isRadioOn = !isRadioOn;
-	ESP_LOGI(TAG, "radio %d", isRadioOn);
+	ESP_LOGI(TAG, "Audio output switched (in menu radio)");
+
+	enum ui_cmd ui_command      = UIC_SWITCH_OUTPUT;
+	audio_event_iface_msg_t msg = {
+		.cmd         = 6969,
+		.source_type = 6969,
+		.data        = (void *)ui_command,
+	};
+
+	audio_event_iface_sendout(evt_ptr, &msg);
 }
 
 /**
  * @brief Goes a channel down. (radio)
  */
-static void changeChannelDown(void *args) { ESP_LOGI(TAG, "channel down"); }
+static void changeChannelDown(void *args) {
+	ESP_LOGI(TAG, "channel down");
+
+	enum ui_cmd ui_command      = UIC_CHANNEL_DOWN;
+	audio_event_iface_msg_t msg = {
+		.cmd         = 6969,
+		.source_type = 6969,
+		.data        = (void *)ui_command,
+	};
+
+	audio_event_iface_sendout(evt_ptr, &msg);
+}
 
 /**
  * @brief Goes a channel up. (radio)
  */
-static void changeChannelUp(void *args) { ESP_LOGI(TAG, "channel up"); }
+static void changeChannelUp(void *args) {
+	ESP_LOGI(TAG, "channel up");
+
+	enum ui_cmd ui_command      = UIC_CHANNEL_UP;
+	audio_event_iface_msg_t msg = {
+		.cmd         = 6969,
+		.source_type = 6969,
+		.data        = (void *)ui_command,
+	};
+
+	audio_event_iface_sendout(evt_ptr, &msg);
+}
 
 /**
  * @brief Turns volume up.
@@ -60,7 +114,7 @@ static void plusVolume(void *args) {
 
 	enum ui_cmd ui_command      = UIC_VOLUME_UP;
 	audio_event_iface_msg_t msg = {
-		.cmd         = UIC_VOLUME_UP,
+		.cmd         = 6969,
 		.source_type = 6969,
 		.data        = (void *)ui_command,
 	};
@@ -71,7 +125,18 @@ static void plusVolume(void *args) {
 /**
  * @brief Turns volume down.
  */
-static void minVolume(void *args) { ESP_LOGI(TAG, "volume down"); }
+static void minVolume(void *args) {
+	ESP_LOGI(TAG, "volume down");
+
+	enum ui_cmd ui_command      = UIC_VOLUME_DOWN;
+	audio_event_iface_msg_t msg = {
+		.cmd         = 6969,
+		.source_type = 6969,
+		.data        = (void *)ui_command,
+	};
+
+	audio_event_iface_sendout(evt_ptr, &msg);
+}
 
 static void screen_draw_menu(struct screen *screen, int redraw);
 static void screen_event_handler_menu(struct screen *screen, enum button_id);
@@ -274,10 +339,9 @@ void lcd1602_task(void *pvParameter) {
 	evt_cfg.internal_queue_size     = 20;
 	evt_ptr                         = audio_event_iface_init(&evt_cfg);
 
-	audio_event_iface_handle_t evt_param =
-	    (audio_event_iface_handle_t)pvParameter;
+	global_evt = (audio_event_iface_handle_t)pvParameter;
 
-	audio_event_iface_set_listener(evt_ptr, evt_param);
+	audio_event_iface_set_listener(evt_ptr, global_evt);
 
 	// Set up I2C
 	i2c_master_init();
@@ -327,6 +391,11 @@ void lcd1602_task(void *pvParameter) {
 		}
 		vTaskDelay(100 / portTICK_PERIOD_MS);
 	}
-	ESP_LOGE(TAG, "DOOD");
+	lcd1602_task_deinit();
+}
+
+static void lcd1602_task_deinit() {
+	audio_event_iface_remove_listener(global_evt, evt_ptr);
+
 	vTaskDelete(NULL);
 }
