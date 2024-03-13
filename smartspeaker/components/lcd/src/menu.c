@@ -8,7 +8,6 @@
 #include "audio_event_iface.h"
 #include "esp_log.h"
 
-#include "freertos/task.h"
 #include <stdlib.h>
 
 #define SEND_UI_CMD(command)                                                   \
