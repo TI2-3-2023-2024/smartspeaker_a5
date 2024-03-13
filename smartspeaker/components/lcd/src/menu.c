@@ -94,6 +94,22 @@ static void minVolume(void *args) {
 	SEND_UI_CMD(UIC_VOLUME_DOWN);
 }
 
+/**
+ * @brief Request the clock for the time so the clock says the time.
+ */
+static void requestTime(void *args) {
+	ESP_LOGI(TAG, "volume down");
+
+	enum ui_cmd ui_command      = UIC_ASK_CLOCK_TIME;
+	audio_event_iface_msg_t msg = {
+		.cmd         = 6969,
+		.source_type = 6969,
+		.data        = (void *)ui_command,
+	};
+
+	audio_event_iface_sendout(evt_ptr, &msg);
+}
+
 static void screen_draw_menu(struct screen *screen, int redraw);
 static void screen_event_handler_menu(struct screen *screen, enum button_id);
 static void screen_draw_welcome(struct screen *screen, int redraw);
@@ -104,6 +120,7 @@ static struct menu menu_main;
 static struct menu_item menu_clock_items[] = {
 	{ .type = MENU_TYPE_FUNCTION, .name = "+", .data.function = plusVolume },
 	{ .type = MENU_TYPE_FUNCTION, .name = "-", .data.function = minVolume },
+	{ .type = MENU_TYPE_FUNCTION, .name = "Time?", .data.function = requestTime },
 	{ .type = MENU_TYPE_MENU, .name = "Back", .data.menu = &menu_main },
 };
 

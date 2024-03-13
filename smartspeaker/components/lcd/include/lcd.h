@@ -10,6 +10,7 @@ enum ui_cmd {
 	UIC_CHANNEL_DOWN,
 	UIC_PARTY_MODE_ON,
 	UIC_PARTY_MODE_OFF,
+	UIC_ASK_CLOCK_TIME,
 };
 
 void lcd1602_task(void *param);

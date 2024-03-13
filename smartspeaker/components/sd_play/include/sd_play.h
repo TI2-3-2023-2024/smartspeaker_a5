@@ -26,7 +26,7 @@ void sd_play_init_sdcard_clock(audio_event_iface_handle_t evt,
                                esp_periph_set_handle_t periph_set);
 
 /**
- * @brief Initialise sdcard board. This function has to be called before the
+ * @brief Mounts sdcard. This function has to be called before the
  * sd_play_init_sdcard_clock function.
  *
  * @param periph_set peripheral set to add sdcard player service to.
@@ -38,6 +38,7 @@ void sd_play_init_sdcard(esp_periph_set_handle_t periph_set);
  *
  * @param periph_set peripheral set to add sdcard player service to.
  */
-esp_err_t sd_play_deinit_sdcard_clock(void);
+esp_err_t sd_play_deinit_sdcard_clock(audio_event_iface_handle_t evt,
+                               esp_periph_set_handle_t periph_set);
 
 #endif /* SD_PLAY_H */
