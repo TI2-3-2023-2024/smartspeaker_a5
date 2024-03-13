@@ -70,6 +70,8 @@ static void wifi_init_task(void *args) {
 	/* Initialise SNTP*/
 	ESP_LOGI(TAG, "Initialise NTP");
 	sntp_mod_init();
+
+	vTaskDelete(NULL);
 }
 
 static void app_init(void) {
@@ -111,17 +113,21 @@ static void app_init(void) {
 	ESP_LOGI(TAG, "Initialise WI-FI");
 	wifi_init();
 
-	xTaskCreate(wifi_init_task, "wifi_init_task", 4096, NULL, 10, NULL);
+	wifi_wait(portMAX_DELAY);
+
+	/* Initialise SNTP*/
+	ESP_LOGI(TAG, "Initialise NTP");
+	sntp_mod_init();
 
 	ESP_LOGI(TAG, "Initialise audio analyser");
 	audio_analyser_init();
 
 #ifdef CONFIG_LCD_ENABLED
-	xTaskCreate(&lcd1602_task, "lcd1602_task", 4096, evt, 5, NULL);
+	xTaskCreate(&lcd1602_task, "lcd1602_task", 2048, evt, 5, NULL);
 #endif
 
 	// Starts audio analyser task
-	xTaskCreate(tone_detection_task, "tone_detection_task", 4096, NULL, 5,
+	xTaskCreate(tone_detection_task, "tone_detection_task", 2048, NULL, 5,
 	            NULL);
 }
 
@@ -284,12 +290,12 @@ void app_main() {
 		ESP_LOGI(TAG, "Received event with cmd: %d, source_type %d and data %p",
 		         msg.cmd, msg.source_type, msg.data);
 
+		handle_ui_input(&msg);
+		handle_touch_input(&msg);
+
 		struct state *current_state = speaker_states + speaker_state_index;
 		if (current_state->run && current_state->run(&msg, NULL) != ESP_OK)
 			ESP_LOGE(TAG, "Error running state %d", speaker_state_index);
-
-		handle_ui_input(&msg);
-		handle_touch_input(&msg);
 	}
 
 exit:
