@@ -42,9 +42,9 @@ static audio_pipeline_handle_t pipeline;
 static audio_element_handle_t bt_stream_reader;
 static audio_element_handle_t output_stream_writer;
 
-esp_err_t init_bt(audio_element_handle_t *elems, size_t count,
+esp_err_t bt_sink_init(audio_element_handle_t *elems, size_t count,
                   audio_event_iface_handle_t evt,
-                  esp_periph_set_handle_t periph_set) {
+                  esp_periph_set_handle_t periph_set, void *args) {
 	ESP_LOGI(TAG, "Create Bluetooth service");
 	bluetooth_service_cfg_t bt_cfg = {
 		.device_name                   = CONFIG_BT_SINK_DEVICE_NAME,
@@ -89,9 +89,9 @@ esp_err_t init_bt(audio_element_handle_t *elems, size_t count,
 	return ESP_OK;
 }
 
-esp_err_t deinit_bt(audio_element_handle_t *elems, size_t count,
+esp_err_t bt_sink_deinit(audio_element_handle_t *elems, size_t count,
                     audio_event_iface_handle_t evt,
-                    esp_periph_set_handle_t periph_set) {
+                    esp_periph_set_handle_t periph_set, void *args) {
 
 	ESP_LOGI(TAG, "Stop audio_pipeline");
 	audio_pipeline_stop(pipeline);
@@ -121,46 +121,7 @@ esp_err_t deinit_bt(audio_element_handle_t *elems, size_t count,
 	return ESP_OK;
 }
 
-// esp_err_t bt_pipeline_init(audio_element_handle_t output,
-//                            audio_event_iface_handle_t evt) {
-// 	output_stream_writer = output;
-
-// 	ESP_LOGI(TAG, "Create audio pipeline");
-// 	audio_pipeline_cfg_t pipeline_cfg = DEFAULT_AUDIO_PIPELINE_CONFIG();
-// 	pipeline                          = audio_pipeline_init(&pipeline_cfg);
-
-// 	ESP_LOGI(TAG, "[3.2] Get Bluetooth stream");
-// 	bt_stream_reader = bluetooth_service_create_stream();
-
-// 	ESP_LOGI(TAG, "[3.2] Register all elements to audio pipeline");
-// 	audio_pipeline_register(pipeline, bt_stream_reader, "bt");
-// 	audio_pipeline_register(pipeline, output_stream_writer, "output");
-
-// 	const char *link_tag[2] = { "bt", "output" };
-// 	audio_pipeline_link(pipeline, link_tag, 2);
-
-// 	audio_pipeline_set_listener(pipeline, evt);
-// 	audio_pipeline_run(pipeline);
-// 	return ESP_OK;
-// }
-
-// esp_err_t bt_pipeline_destroy(audio_element_handle_t output_stream_writer,
-//                               audio_event_iface_handle_t evt) {
-
-// 	ESP_LOGI(TAG, "Stop audio_pipeline");
-// 	audio_pipeline_stop(pipeline);
-// 	audio_pipeline_wait_for_stop(pipeline);
-// 	audio_pipeline_terminate(pipeline);
-
-// 	audio_pipeline_unregister(pipeline, bt_stream_reader);
-// 	audio_pipeline_unregister(pipeline, output_stream_writer);
-// 	audio_pipeline_remove_listener(pipeline);
-// 	audio_pipeline_deinit(pipeline);
-// 	audio_element_deinit(bt_stream_reader);
-// 	return ESP_OK;
-// }
-
-esp_err_t bt_run(audio_event_iface_msg_t *msg) {
+esp_err_t bt_sink_run(audio_event_iface_msg_t *msg, void *args) {
 	if (msg->source_type == AUDIO_ELEMENT_TYPE_ELEMENT &&
 	    msg->source == (void *)bt_stream_reader &&
 	    msg->cmd == AEL_MSG_CMD_REPORT_MUSIC_INFO) {

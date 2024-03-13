@@ -11,9 +11,9 @@
 
 #include "audio_event_iface.h"
 #include "board.h"
-#include "freertos/FreeRTOS.h"
 #include "nvs_flash.h"
 #include <stdio.h>
+#include <sys/time.h>
 
 /* audio */
 #include "audio_element.h"
@@ -36,8 +36,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 
-#include "sd_play.h"
-#include <sys/time.h>
+#include "state.h"
 
 static const char *TAG = "MAIN";
 
@@ -45,11 +44,25 @@ static audio_board_handle_t board_handle;
 static esp_periph_set_handle_t periph_set;
 static audio_event_iface_handle_t evt;
 
-static int player_volume = 0;
+static int player_volume;
 static int use_led_strip = 1;
 
-static bool use_radio = true;
-static int player_volume;
+struct state speaker_states[SPEAKER_STATE_MAX] = {
+	{ .enter     = radio_init,
+	  .run       = radio_run,
+	  .exit      = radio_deinit,
+	  .can_enter = NULL }, /* RADIO */
+	{ .enter     = bt_sink_init,
+	  .run       = bt_sink_run,
+	  .exit      = bt_sink_deinit,
+	  .can_enter = NULL }, /* BLUETOOTH */
+	{ .enter     = sd_play_init,
+	  .run       = sd_play_run,
+	  .exit      = sd_play_deinit,
+	  .can_enter = NULL }, /* CLOCK */
+};
+enum speaker_state speaker_state_index     = SPEAKER_STATE_NONE;
+enum speaker_state speaker_state_index_old = SPEAKER_STATE_NONE;
 
 static void app_init(void) {
 	esp_log_level_set("*", ESP_LOG_INFO);
@@ -127,23 +140,119 @@ static void app_free(void) {
 	// TODO function for deinitialising wifi
 }
 
-void switch_stream() {
-	if (use_radio) {
-		use_radio = false;
+static esp_err_t switch_state(enum speaker_state state, void *args) {
+	struct state *current_state = speaker_states + speaker_state_index;
+	struct state *new_state     = speaker_states + state;
+	if (new_state->can_enter && !new_state->can_enter(args)) return ESP_FAIL;
+	if (current_state->exit)
+		ESP_RETURN_ON_ERROR(current_state->exit(NULL, 0, evt, periph_set, args),
+		                    "STATE", "Error exiting state %d",
+		                    speaker_state_index);
 
-		ESP_LOGI(TAG, "Deinitialise radio");
-		ESP_ERROR_CHECK(deinit_radio(NULL, 0, evt));
+	speaker_state_index_old = speaker_state_index;
+	speaker_state_index     = SPEAKER_STATE_NONE;
+	if (new_state->enter)
+		ESP_RETURN_ON_ERROR(new_state->enter(NULL, 0, evt, periph_set, args),
+		                    "STATE", "Error entering state %d", state);
 
-		ESP_LOGI(TAG, "Initialise Bluetooth sink");
-		ESP_ERROR_CHECK(init_bt(NULL, 0, evt, periph_set));
-	} else {
-		use_radio = true;
+	speaker_state_index = state;
+	return ESP_OK;
+}
 
-		ESP_LOGI(TAG, "Deinitialise Bluetooth");
-		ESP_ERROR_CHECK(deinit_bt(NULL, 0, evt, periph_set));
+static void set_volume(int volume) {
+	if (volume > 100) volume = 100;
+	if (volume < 0) volume = 0;
+#ifdef CONFIG_LED_CONTROLLER_ENABLED
+	if (use_led_strip) led_controller_set_leds_volume(volume);
+#endif
+	audio_hal_set_volume(board_handle->audio_hal, volume);
+	player_volume = volume;
+}
 
-		ESP_LOGI(TAG, "Initialise radio");
-		ESP_ERROR_CHECK(init_radio(NULL, 0, evt));
+static void handle_touch_input(audio_event_iface_msg_t *msg) {
+	if ((msg->source_type == PERIPH_ID_TOUCH ||
+	     msg->source_type == PERIPH_ID_BUTTON ||
+	     msg->source_type == PERIPH_ID_ADC_BTN) &&
+	    (msg->cmd == PERIPH_TOUCH_TAP || msg->cmd == PERIPH_BUTTON_PRESSED ||
+	     msg->cmd == PERIPH_ADC_BUTTON_PRESSED)) {
+
+		if ((int)msg->data == get_input_play_id()) {
+			ESP_LOGI(TAG, "[ * ] [Play] touch tap event");
+			if (speaker_state_index == SPEAKER_STATE_RADIO)
+				switch_state(SPEAKER_STATE_BLUETOOTH, NULL);
+			else switch_state(SPEAKER_STATE_RADIO, NULL);
+		} else if ((int)msg->data == get_input_set_id()) {
+			ESP_LOGI(TAG, "[ * ] [Set] touch tap event");
+			if (use_led_strip == 1) {
+#ifdef CONFIG_LED_CONTROLLER_ENABLED
+				led_controller_turn_off();
+				use_led_strip = 0;
+#endif
+			} else {
+#ifdef CONFIG_LED_CONTROLLER_ENABLED
+				led_controller_set_leds_volume(player_volume);
+				use_led_strip = 1;
+#endif
+			}
+		} else if ((int)msg->data == get_input_volup_id()) {
+			ESP_LOGI(TAG, "[ * ] [Vol+] touch tap event");
+			set_volume(player_volume + 10);
+		} else if ((int)msg->data == get_input_voldown_id()) {
+			ESP_LOGI(TAG, "[ * ] [Vol-] touch tap event");
+			set_volume(player_volume - 10);
+		}
+	}
+}
+
+static void handle_ui_input(audio_event_iface_msg_t *msg) {
+	// Event from LCD buttons/UI
+	if (msg->cmd == 6969 && msg->source_type == 6969) {
+		enum ui_cmd ui_command = (enum ui_cmd)msg->data;
+		ESP_LOGI(TAG, "Received ui event: %d", ui_command);
+
+		switch (ui_command) {
+			case UIC_SWITCH_OUTPUT:
+				if (speaker_state_index == SPEAKER_STATE_RADIO)
+					switch_state(SPEAKER_STATE_BLUETOOTH, NULL);
+				else switch_state(SPEAKER_STATE_RADIO, NULL);
+				break;
+			case UIC_VOLUME_UP: set_volume(player_volume + 10); break;
+			case UIC_VOLUME_DOWN: set_volume(player_volume - 10); break;
+			case UIC_CHANNEL_UP:
+				if (speaker_state_index == SPEAKER_STATE_RADIO) channel_up();
+				break;
+			case UIC_CHANNEL_DOWN:
+				if (speaker_state_index == SPEAKER_STATE_RADIO) channel_down();
+				break;
+			case UIC_PARTY_MODE_ON:
+			case UIC_PARTY_MODE_OFF:
+				ESP_LOGW(TAG, "Party mode feature not yet implemented");
+				break;
+			case UIC_ASK_CLOCK_TIME:
+				// struct timeval tv;
+				// int ret = gettimeofday(&tv, NULL);
+				// if (ret != 0) goto time_err;
+
+				// struct tm *tm = localtime(&tv.tv_sec);
+				// if (!tm) goto time_err;
+				//  ESP_LOGI(TAG, "%d", tm->tm_min);
+				//  ESP_LOGI(TAG, "%d", tm->tm_hour);
+
+				switch_state(SPEAKER_STATE_CLOCK, NULL);
+
+				// play_audio_through_string("/sdcard/nl/cu.mp3");
+				// play_audio_through_int(tm->tm_hour);
+				// play_audio_through_int(tm->tm_min);
+
+				// ESP_ERROR_CHECK(sd_play_deinit_sdcard_clock(evt,
+				// periph_set));
+
+				// ESP_ERROR_CHECK(init_radio(NULL, 0, evt));
+				break;
+		}
+	} else if (msg->cmd == 6970 && msg->source_type == 6970 &&
+	           (int)msg->data == SDC_CLOCK_DONE) {
+		switch_state(speaker_state_index_old, NULL);
 	}
 }
 
@@ -154,13 +263,9 @@ void app_main() {
 	// Initialise component dependencies
 	app_init();
 
-	player_volume = 50;
-#ifdef CONFIG_LED_CONTROLLER_ENABLED
-	led_controller_set_leds_volume(player_volume);
-#endif
-	audio_hal_set_volume(board_handle->audio_hal, player_volume);
+	set_volume(50);
 
-	init_radio(NULL, 0, evt);
+	radio_init(NULL, 0, evt, periph_set, NULL);
 
 	/* Main eventloop */
 	ESP_LOGI(TAG, "Entering main eventloop");
@@ -172,119 +277,12 @@ void app_main() {
 		ESP_LOGI(TAG, "Received event with cmd: %d, source_type %d and data %p",
 		         msg.cmd, msg.source_type, msg.data);
 
-		if (use_radio) {
-			ESP_GOTO_ON_ERROR(radio_run(&msg), exit, TAG, "Radio run failed");
-		} else {
-			ESP_GOTO_ON_ERROR(bt_run(&msg), exit, TAG, "Bluetooth run failed");
-		}
+		struct state *current_state = speaker_states + speaker_state_index;
+		if (current_state->run && current_state->run(&msg, NULL) != ESP_OK)
+			ESP_LOGE(TAG, "Error running state %d", speaker_state_index);
 
-		// Event from LCD buttons/UI
-		if (msg.cmd == 6969 && msg.source_type == 6969) {
-			enum ui_cmd ui_command = (int)msg.data;
-			ESP_LOGI(TAG, "Received custom event: %d", ui_command);
-
-			if (ui_command == UIC_SWITCH_OUTPUT) {
-				switch_stream();
-			} else if (ui_command == UIC_VOLUME_UP) {
-				player_volume += 10;
-				if (player_volume > 100) { player_volume = 100; }
-#ifdef CONFIG_LED_CONTROLLER_ENABLED
-				if (use_led_strip == 1) {
-					led_controller_set_leds_volume(player_volume);
-				}
-#endif
-				audio_hal_set_volume(board_handle->audio_hal, player_volume);
-			} else if (ui_command == UIC_VOLUME_DOWN) {
-				player_volume -= 10;
-				if (player_volume < 0) { player_volume = 0; }
-#ifdef CONFIG_LED_CONTROLLER_ENABLED
-				if (use_led_strip == 1) {
-					led_controller_set_leds_volume(player_volume);
-				}
-#endif
-				audio_hal_set_volume(board_handle->audio_hal, player_volume);
-			} else if (ui_command == UIC_CHANNEL_UP && use_radio) {
-				channel_up();
-			} else if (ui_command == UIC_CHANNEL_DOWN && use_radio) {
-				channel_down();
-			} else if (ui_command == UIC_PARTY_MODE_ON ||
-			           ui_command == UIC_PARTY_MODE_OFF) {
-				ESP_LOGW(TAG, "Party mode feature not yet implemented");
-			} else if (ui_command == UIC_ASK_CLOCK_TIME) {
-				// struct timeval tv;
-				// int ret = gettimeofday(&tv, NULL);
-				// if (ret != 0) goto time_err;
-
-				// struct tm *tm = localtime(&tv.tv_sec);
-				// if (!tm) goto time_err;
-				//  ESP_LOGI(TAG, "%d", tm->tm_min);
-				//  ESP_LOGI(TAG, "%d", tm->tm_hour);
-
-				ESP_ERROR_CHECK(deinit_radio(NULL, 0, evt));
-
-				sd_play_init_sdcard_clock(evt, periph_set);
-
-				// play_audio_through_string("/sdcard/nl/cu.mp3");
-				// play_audio_through_int(tm->tm_hour);
-				// play_audio_through_int(tm->tm_min);
-
-				// ESP_ERROR_CHECK(sd_play_deinit_sdcard_clock(evt,
-				// periph_set));
-
-				// ESP_ERROR_CHECK(init_radio(NULL, 0, evt));
-			}
-		} else if (msg.cmd == 6970 && msg.source_type == 6970 &&
-		           (int)msg.data == SDC_CLOCK_DONE) {
-			sd_play_deinit_sdcard_clock(evt, periph_set);
-			ESP_ERROR_CHECK(init_radio(NULL, 0, evt));
-		}
-
-		sd_play_run(&msg);
-
-		if ((msg.source_type == PERIPH_ID_TOUCH ||
-		     msg.source_type == PERIPH_ID_BUTTON ||
-		     msg.source_type == PERIPH_ID_ADC_BTN) &&
-		    (msg.cmd == PERIPH_TOUCH_TAP || msg.cmd == PERIPH_BUTTON_PRESSED ||
-		     msg.cmd == PERIPH_ADC_BUTTON_PRESSED)) {
-
-			if ((int)msg.data == get_input_play_id()) {
-				ESP_LOGI(TAG, "[ * ] [Play] touch tap event");
-				switch_stream();
-			} else if ((int)msg.data == get_input_set_id()) {
-				ESP_LOGI(TAG, "[ * ] [Set] touch tap event");
-				if (use_led_strip == 1) {
-#ifdef CONFIG_LED_CONTROLLER_ENABLED
-					led_controller_turn_off();
-					use_led_strip = 0;
-#endif
-				} else {
-#ifdef CONFIG_LED_CONTROLLER_ENABLED
-					led_controller_set_leds_volume(player_volume);
-					use_led_strip = 1;
-#endif
-				}
-			} else if ((int)msg.data == get_input_volup_id()) {
-				ESP_LOGI(TAG, "[ * ] [Vol+] touch tap event");
-				player_volume += 10;
-				if (player_volume > 100) { player_volume = 100; }
-#ifdef CONFIG_LED_CONTROLLER_ENABLED
-				if (use_led_strip == 1) {
-					led_controller_set_leds_volume(player_volume);
-				}
-#endif
-				audio_hal_set_volume(board_handle->audio_hal, player_volume);
-			} else if ((int)msg.data == get_input_voldown_id()) {
-				ESP_LOGI(TAG, "[ * ] [Vol-] touch tap event");
-				player_volume -= 10;
-				if (player_volume < 0) { player_volume = 0; }
-#ifdef CONFIG_LED_CONTROLLER_ENABLED
-				if (use_led_strip == 1) {
-					led_controller_set_leds_volume(player_volume);
-				}
-#endif
-				audio_hal_set_volume(board_handle->audio_hal, player_volume);
-			}
-		}
+		handle_ui_input(&msg);
+		handle_touch_input(&msg);
 	}
 
 exit:

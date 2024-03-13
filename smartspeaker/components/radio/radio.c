@@ -63,8 +63,9 @@ esp_err_t http_stream_event_handle(http_stream_event_msg_t *msg) {
 	return ESP_OK;
 }
 
-esp_err_t init_radio(audio_element_handle_t *elems, size_t count,
-                     audio_event_iface_handle_t evt) {
+esp_err_t radio_init(audio_element_handle_t *elems, size_t count,
+                     audio_event_iface_handle_t evt,
+                     esp_periph_set_handle_t periph_set, void *args) {
 	if (radio_initialized) {
 		ESP_LOGW(TAG, "Radio already initialized, skipping initialization");
 		return ESP_OK;
@@ -118,8 +119,9 @@ esp_err_t init_radio(audio_element_handle_t *elems, size_t count,
 /**
  * @brief Deinitialize the radio component and delete the radio task.
  */
-esp_err_t deinit_radio(audio_element_handle_t *elems, size_t count,
-                       audio_event_iface_handle_t evt) {
+esp_err_t radio_deinit(audio_element_handle_t *elems, size_t count,
+                       audio_event_iface_handle_t evt,
+                       esp_periph_set_handle_t periph_set, void *args) {
 	if (!radio_initialized) {
 		ESP_LOGW(TAG, "Radio already deinitialized, skipping deinitialization");
 		return ESP_OK;
@@ -230,7 +232,7 @@ esp_err_t tune_radio(unsigned int channel_idx) {
 /**
  * @brief  Listen for radio events and user input and handle them.
  */
-esp_err_t radio_run(audio_event_iface_msg_t *msg) {
+esp_err_t radio_run(audio_event_iface_msg_t *msg, void *args) {
 	if (msg->source_type == AUDIO_ELEMENT_TYPE_ELEMENT &&
 	    msg->source == (void *)mp3_decoder &&
 	    msg->cmd == AEL_MSG_CMD_REPORT_MUSIC_INFO) {

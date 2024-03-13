@@ -57,8 +57,8 @@ struct tm *get_cur_time() {
 	return localtime(&tv.tv_sec);
 }
 
-void sd_play_run(audio_event_iface_msg_t *msg) {
-	if (!is_sd_init) return;
+esp_err_t sd_play_run(audio_event_iface_msg_t *msg, void *args) {
+	if (!is_sd_init) return ESP_FAIL;
 
 	bool playback_finished = (msg->source_type == AUDIO_ELEMENT_TYPE_ELEMENT &&
 	                          msg->source == (void *)i2s_stream_writer &&
@@ -90,6 +90,7 @@ void sd_play_run(audio_event_iface_msg_t *msg) {
 			default: break;
 		}
 	}
+	return ESP_OK;
 }
 
 void play_audio_through_string(char *urlToAudioFile) {
@@ -109,8 +110,9 @@ void play_audio_through_int(int number) {
 	play_audio_through_string(urlToAudioFile);
 }
 
-void sd_play_init_sdcard_clock(audio_event_iface_handle_t evt_handle,
-                               esp_periph_set_handle_t periph_set) {
+esp_err_t sd_play_init(audio_element_handle_t *elems, size_t count,
+                       audio_event_iface_handle_t evt_handle,
+                       esp_periph_set_handle_t periph_set, void *args) {
 	// mount sdcard
 	periph_sdcard_cfg_t sdcard_cfg = {
 		.root            = "/sdcard",
@@ -173,11 +175,13 @@ void sd_play_init_sdcard_clock(audio_event_iface_handle_t evt_handle,
 	audio_pipeline_set_listener(pipeline, evt_handle);
 
 	is_sd_init = true;
+
+	return ESP_OK;
 }
 
-esp_err_t sd_play_deinit_sdcard_clock(audio_event_iface_handle_t evt_handle,
-                                      esp_periph_set_handle_t periph_set) {
-
+esp_err_t sd_play_deinit(audio_element_handle_t *elems, size_t count,
+                         audio_event_iface_handle_t evt_handle,
+                         esp_periph_set_handle_t periph_set, void *args) {
 	audio_event_iface_remove_listener(evt, evt_handle);
 	audio_pipeline_remove_listener(pipeline);
 

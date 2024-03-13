@@ -2,14 +2,17 @@
 #define SD_PLAY_H
 #pragma once
 
+#include "audio_element.h"
 #include "audio_event_iface.h"
+#include "esp_err.h"
+#include "esp_peripherals.h"
 
 enum sd_cmd {
 	SDC_CLOCK_DONE = 0,
 };
 
 // TODO: documentation
-void sd_play_run(audio_event_iface_msg_t *msg);
+esp_err_t sd_play_run(audio_event_iface_msg_t *msg, void *args);
 
 /**
  * @brief Sets .mp3 file up to be played.
@@ -31,23 +34,17 @@ void play_audio_through_int(int number);
  *
  * @param periph_set peripheral set to add sdcard player service to.
  */
-void sd_play_init_sdcard_clock(audio_event_iface_handle_t evt,
-                               esp_periph_set_handle_t periph_set);
-
-/**
- * @brief Mounts sdcard. This function has to be called before the
- * sd_play_init_sdcard_clock function.
- *
- * @param periph_set peripheral set to add sdcard player service to.
- */
-void sd_play_init_sdcard(esp_periph_set_handle_t periph_set);
+esp_err_t sd_play_init(audio_element_handle_t *elems, size_t count,
+                       audio_event_iface_handle_t evt,
+                       esp_periph_set_handle_t periph_set, void *args);
 
 /**
  * @brief Deinit everything.
  *
  * @param periph_set peripheral set to add sdcard player service to.
  */
-esp_err_t sd_play_deinit_sdcard_clock(audio_event_iface_handle_t evt,
-                                      esp_periph_set_handle_t periph_set);
+esp_err_t sd_play_deinit(audio_element_handle_t *elems, size_t count,
+                         audio_event_iface_handle_t evt,
+                         esp_periph_set_handle_t periph_set, void *args);
 
 #endif /* SD_PLAY_H */
