@@ -64,6 +64,14 @@ struct state speaker_states[SPEAKER_STATE_MAX] = {
 enum speaker_state speaker_state_index     = SPEAKER_STATE_NONE;
 enum speaker_state speaker_state_index_old = SPEAKER_STATE_NONE;
 
+static void wifi_init_task(void *args) {
+	wifi_wait(portMAX_DELAY);
+
+	/* Initialise SNTP*/
+	ESP_LOGI(TAG, "Initialise NTP");
+	sntp_mod_init();
+}
+
 static void app_init(void) {
 	esp_log_level_set("*", ESP_LOG_INFO);
 
@@ -102,11 +110,8 @@ static void app_init(void) {
 	/* Initialise WI-Fi component */
 	ESP_LOGI(TAG, "Initialise WI-FI");
 	wifi_init();
-	wifi_wait();
 
-	/* Initialise SNTP*/
-	ESP_LOGI(TAG, "Initialise NTP");
-	sntp_mod_init();
+	xTaskCreate(wifi_init_task, "wifi_init_task", 4096, NULL, 10, NULL);
 
 	ESP_LOGI(TAG, "Initialise audio analyser");
 	audio_analyser_init();
@@ -265,7 +270,9 @@ void app_main() {
 
 	set_volume(50);
 
-	radio_init(NULL, 0, evt, periph_set, NULL);
+	wifi_wait(portMAX_DELAY);
+	switch_state(SPEAKER_STATE_RADIO, NULL);
+	/* radio_init(NULL, 0, evt, periph_set, NULL); */
 
 	/* Main eventloop */
 	ESP_LOGI(TAG, "Entering main eventloop");

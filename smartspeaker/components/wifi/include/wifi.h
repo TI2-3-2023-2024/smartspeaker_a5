@@ -3,6 +3,7 @@
 #pragma once
 
 #include "esp_err.h"
+#include "freertos/FreeRTOS.h"
 
 #define WIFI_SSID  CONFIG_WIFI_SSID
 #define WIFI_PASS  CONFIG_WIFI_PASS
@@ -20,6 +21,6 @@ esp_err_t wifi_init(void);
  *
  * @return esp error code
  */
-esp_err_t wifi_wait(void);
+esp_err_t wifi_wait(TickType_t xTicksToWait);
 
 #endif /* WIFI_H */

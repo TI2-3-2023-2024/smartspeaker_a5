@@ -73,10 +73,10 @@ esp_err_t wifi_init(void) {
 	return ESP_OK;
 }
 
-esp_err_t wifi_wait(void) {
+esp_err_t wifi_wait(TickType_t xTicksToWait) {
 	EventBits_t bits = xEventGroupWaitBits(wifi_event_group,
 	                                       WIFI_CONNECTED_BIT | WIFI_FAIL_BIT,
-	                                       pdFALSE, pdFALSE, portMAX_DELAY);
+	                                       pdFALSE, pdFALSE, xTicksToWait);
 
 	if (bits & WIFI_CONNECTED_BIT) {
 		// ESP_LOGI(TAG, "connected to ap SSID:%s", EXAMPLE_ESP_WIFI_SSID);
