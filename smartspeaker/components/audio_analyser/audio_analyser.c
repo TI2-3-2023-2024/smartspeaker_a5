@@ -19,6 +19,7 @@
 #include "esp_log.h"
 
 #include "led_controller_commands.h"
+#include "utils/macro.h"
 
 #define GOERTZEL_NR_FREQS                                                      \
 	((sizeof GOERTZEL_DETECT_FREQS) / (sizeof GOERTZEL_DETECT_FREQS[0]))
@@ -67,7 +68,8 @@ static void detect_freq(int target_freq, float magnitude) {
 	}
 }
 
-esp_err_t tone_detection_task(void) {
+void tone_detection_task(void *args) {
+	UNUSED esp_err_t ret;
 	goertzel_filter_cfg_t filters_cfg[GOERTZEL_NR_FREQS];
 	goertzel_filter_data_t filters_data[GOERTZEL_NR_FREQS];
 
@@ -78,7 +80,7 @@ esp_err_t tone_detection_task(void) {
 	int16_t *raw_buffer = malloc(sizeof *raw_buffer * GOERTZEL_BUFFER_LENGTH);
 	if (raw_buffer == NULL) {
 		ESP_LOGE(TAG, "Memory allocation for raw sample buffer failed");
-		return ESP_FAIL;
+		goto exit;
 	}
 
 	ESP_LOGI(TAG, "Setup Goertzel detection filters");
@@ -86,7 +88,9 @@ esp_err_t tone_detection_task(void) {
 		filters_cfg[f].sample_rate   = GOERTZEL_SAMPLE_RATE_HZ;
 		filters_cfg[f].target_freq   = GOERTZEL_DETECT_FREQS[f];
 		filters_cfg[f].buffer_length = GOERTZEL_BUFFER_LENGTH;
-		ESP_RETURN_ON_ERROR(goertzel_filter_setup(&filters_data[f], &filters_cfg[f]), TAG, "");
+		ESP_GOTO_ON_ERROR(
+		    goertzel_filter_setup(&filters_data[f], &filters_cfg[f]), exit, TAG,
+		    "");
 	}
 
 	ESP_LOGI(TAG, "Register audio elements to pipeline");
@@ -104,19 +108,22 @@ esp_err_t tone_detection_task(void) {
 	while (1) {
 		vTaskDelay(pdMS_TO_TICKS(500));
 		raw_stream_read(i2s_stream_reader, (char *)raw_buffer,
-		                GOERTZEL_BUFFER_LENGTH * sizeof(int16_t));
+		                sizeof *raw_buffer * GOERTZEL_BUFFER_LENGTH);
 
 		for (int f = 0; f < GOERTZEL_NR_FREQS; f++) {
 			float magnitude;
 			esp_err_t error = goertzel_filter_process(
 			    &filters_data[f], raw_buffer, GOERTZEL_BUFFER_LENGTH);
-			ESP_ERROR_CHECK(error);
+			ESP_GOTO_ON_ERROR(error, exit, TAG,
+			                  "Error processing goertzel filter");
 
 			if (goertzel_filter_new_magnitude(&filters_data[f], &magnitude)) {
 				detect_freq(filters_cfg[f].target_freq, magnitude);
 			}
 		}
 	}
+exit:
+	return;
 }
 
 void audio_analyser_init(void) {
