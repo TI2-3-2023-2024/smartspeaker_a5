@@ -6,16 +6,14 @@
 
 #include "esp_log.h"
 
+#include "board.h"
 #include "esp_log.h"
 #include "esp_peripherals.h"
 #include "periph_sdcard.h"
 #include "sys/time.h"
 #include "utils/macro.h"
 
-#include "lcd.h"
 #include "sd_play.h"
-
-#include "input_key_service.h"
 
 #include <stdio.h>
 
