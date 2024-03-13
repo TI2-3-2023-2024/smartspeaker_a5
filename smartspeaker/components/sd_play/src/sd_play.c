@@ -1,3 +1,4 @@
+#include "audio_event_iface.h"
 #include "audio_pipeline.h"
 #include "fatfs_stream.h"
 #include "i2s_stream.h"
@@ -5,13 +6,30 @@
 
 #include "esp_log.h"
 
+#include "esp_log.h"
 #include "esp_peripherals.h"
+#include "periph_sdcard.h"
+#include "sys/time.h"
+#include "utils/macro.h"
 
+#include "lcd.h"
 #include "sd_play.h"
 
 #include "input_key_service.h"
 
 #include <stdio.h>
+
+static audio_event_iface_handle_t evt;
+
+#define SEND_SD_CMD(command) SEND_CMD(6970, 6970, command, evt)
+
+enum sd_play_state {
+	SD_PLAY_PLAYING_NONE = 0,
+	SD_PLAY_PLAYING_CU,
+	SD_PLAY_PLAYING_HOUR,
+	SD_PLAY_PLAYING_MIN,
+};
+enum sd_play_state cur_play_state = SD_PLAY_PLAYING_NONE;
 
 // linking elements into an audio pipeline
 static audio_pipeline_handle_t pipeline;
@@ -20,7 +38,61 @@ static audio_element_handle_t i2s_stream_writer, mp3_decoder,
 
 static esp_periph_handle_t sdcard_handle;
 
+static bool is_sd_init = false;
+
 static const char *TAG = "sdcard";
+
+void sd_play_play_file(char *file_url) {
+	audio_element_set_uri(fatfs_stream_reader, file_url);
+	audio_pipeline_reset_ringbuffer(pipeline);
+	audio_pipeline_reset_elements(pipeline);
+	audio_pipeline_change_state(pipeline, AEL_STATE_INIT);
+
+	audio_pipeline_run(pipeline);
+}
+
+struct tm *get_cur_time() {
+	struct timeval tv;
+	// TODO: error handling
+	gettimeofday(&tv, NULL);
+
+	return localtime(&tv.tv_sec);
+}
+
+void sd_play_run(audio_event_iface_msg_t *msg) {
+	if (!is_sd_init) return;
+
+	bool playback_finished = (msg->source_type == AUDIO_ELEMENT_TYPE_ELEMENT &&
+	                          msg->source == (void *)i2s_stream_writer &&
+	                          msg->cmd == AEL_MSG_CMD_REPORT_STATUS &&
+	                          (((int)msg->data == AEL_STATUS_STATE_STOPPED) ||
+	                           ((int)msg->data == AEL_STATUS_STATE_FINISHED)));
+
+	if (cur_play_state == SD_PLAY_PLAYING_NONE) {
+		cur_play_state = SD_PLAY_PLAYING_CU;
+		sd_play_play_file("/sdcard/nl/cu.mp3");
+	} else if (playback_finished) {
+		char buf[50];
+		struct tm *tm_handle = get_cur_time();
+		switch (cur_play_state) {
+			case SD_PLAY_PLAYING_CU:
+				cur_play_state = SD_PLAY_PLAYING_HOUR;
+				snprintf(buf, 50, "/sdcard/nl/%d.mp3", tm_handle->tm_hour);
+				sd_play_play_file(buf);
+				break;
+			case SD_PLAY_PLAYING_HOUR:
+				cur_play_state = SD_PLAY_PLAYING_MIN;
+				snprintf(buf, 50, "/sdcard/nl/%d.mp3", tm_handle->tm_min);
+				sd_play_play_file(buf);
+				break;
+			case SD_PLAY_PLAYING_MIN:
+				cur_play_state = SD_PLAY_PLAYING_NONE;
+				SEND_SD_CMD(SDC_CLOCK_DONE);
+				break;
+			default: break;
+		}
+	}
+}
 
 void play_audio_through_string(char *urlToAudioFile) {
 	audio_element_set_uri(fatfs_stream_reader, urlToAudioFile);
@@ -39,32 +111,30 @@ void play_audio_through_int(int number) {
 	play_audio_through_string(urlToAudioFile);
 }
 
-void sd_play_init_sdcard_clock(audio_event_iface_handle_t evt,
+void sd_play_init_sdcard_clock(audio_event_iface_handle_t evt_handle,
                                esp_periph_set_handle_t periph_set) {
 	// mount sdcard
-    periph_sdcard_cfg_t sdcard_cfg = {
-        .root = "/sdcard",
-        .card_detect_pin = get_sdcard_intr_gpio(), // GPIO_NUM_34
-        .mode = SD_MODE_1_LINE,
-    };
+	periph_sdcard_cfg_t sdcard_cfg = {
+		.root            = "/sdcard",
+		.card_detect_pin = get_sdcard_intr_gpio(), // GPIO_NUM_34
+		.mode            = SD_MODE_1_LINE,
+	};
 
-    esp_periph_handle_t sdcard_handle = periph_sdcard_init(&sdcard_cfg);
-    esp_err_t ret = esp_periph_start(periph_set, sdcard_handle);
+	sdcard_handle = periph_sdcard_init(&sdcard_cfg);
+	esp_err_t ret = esp_periph_start(periph_set, sdcard_handle);
 
-    int retry_time = 5;
-    bool mount_flag = false;
-	
-    while (retry_time --) {
-        if (periph_sdcard_is_mounted(sdcard_handle)) {
-            mount_flag = true;
-            break;
-        } else {
-            vTaskDelay(500 / portTICK_PERIOD_MS);
-        }
-    }
-    if (mount_flag == false) {
-        ESP_LOGI(TAG, "Sdcard mount failed");
-    }
+	int retry_time  = 5;
+	bool mount_flag = false;
+
+	while (retry_time--) {
+		if (periph_sdcard_is_mounted(sdcard_handle)) {
+			mount_flag = true;
+			break;
+		} else {
+			vTaskDelay(500 / portTICK_PERIOD_MS);
+		}
+	}
+	if (mount_flag == false) { ESP_LOGI(TAG, "Sdcard mount failed"); }
 
 	// create audio pipeline for playback
 	audio_pipeline_cfg_t pipeline_cfg = DEFAULT_AUDIO_PIPELINE_CONFIG();
@@ -95,12 +165,22 @@ void sd_play_init_sdcard_clock(audio_event_iface_handle_t evt,
 	audio_pipeline_link(pipeline, (const char *[]){ "file", "mp3", "i2s" }, 3);
 
 	// listening event from all elements of pipeline
-	audio_pipeline_set_listener(pipeline, evt);
+	audio_event_iface_cfg_t evt_cfg = AUDIO_EVENT_IFACE_DEFAULT_CFG();
+	evt_cfg.queue_set_size          = 20;
+	evt_cfg.external_queue_size     = 20;
+	evt_cfg.internal_queue_size     = 20;
+	evt                             = audio_event_iface_init(&evt_cfg);
+
+	audio_event_iface_set_listener(evt, evt_handle);
+	audio_pipeline_set_listener(pipeline, evt_handle);
+
+	is_sd_init = true;
 }
 
-esp_err_t sd_play_deinit_sdcard_clock(audio_event_iface_handle_t evt,
-                               esp_periph_set_handle_t periph_set) {
+esp_err_t sd_play_deinit_sdcard_clock(audio_event_iface_handle_t evt_handle,
+                                      esp_periph_set_handle_t periph_set) {
 
+	audio_event_iface_remove_listener(evt, evt_handle);
 	audio_pipeline_remove_listener(pipeline);
 
 	audio_pipeline_stop(pipeline);
@@ -116,9 +196,14 @@ esp_err_t sd_play_deinit_sdcard_clock(audio_event_iface_handle_t evt,
 	audio_element_deinit(mp3_decoder);
 	audio_element_deinit(i2s_stream_writer);
 
+	if (sdcard_handle == NULL) { ESP_LOGE(TAG, "sdcard_handle was null!!1"); }
+	if (periph_set == NULL) { ESP_LOGE(TAG, "periph_set was null!!1"); }
+
 	esp_periph_stop(sdcard_handle);
 	esp_periph_remove_from_set(periph_set, sdcard_handle);
 	esp_periph_destroy(sdcard_handle);
+
+	is_sd_init = false;
 
 	return ESP_OK;
 }

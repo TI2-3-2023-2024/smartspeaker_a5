@@ -211,30 +211,35 @@ void app_main() {
 			           ui_command == UIC_PARTY_MODE_OFF) {
 				ESP_LOGW(TAG, "Party mode feature not yet implemented");
 			} else if (ui_command == UIC_ASK_CLOCK_TIME) {
-				struct timeval tv;
-				int ret = gettimeofday(&tv, NULL);
-				if (ret != 0) goto time_err;
+				// struct timeval tv;
+				// int ret = gettimeofday(&tv, NULL);
+				// if (ret != 0) goto time_err;
 
-				struct tm *tm =	localtime(&tv.tv_sec);
-				if (!tm) goto time_err;
-				//ESP_LOGI(TAG, "%d", tm->tm_min);
-				//ESP_LOGI(TAG, "%d", tm->tm_hour);
+				// struct tm *tm = localtime(&tv.tv_sec);
+				// if (!tm) goto time_err;
+				//  ESP_LOGI(TAG, "%d", tm->tm_min);
+				//  ESP_LOGI(TAG, "%d", tm->tm_hour);
 
 				ESP_ERROR_CHECK(deinit_radio(NULL, 0, evt));
 
 				sd_play_init_sdcard_clock(evt, periph_set);
 
-				play_audio_through_string("/sdcard/nl/cu.mp3");
- 				play_audio_through_int(tm->tm_hour);
-				play_audio_through_int(tm->tm_min);
+				// play_audio_through_string("/sdcard/nl/cu.mp3");
+				// play_audio_through_int(tm->tm_hour);
+				// play_audio_through_int(tm->tm_min);
 
-				ESP_ERROR_CHECK(sd_play_deinit_sdcard_clock(evt, periph_set));
+				// ESP_ERROR_CHECK(sd_play_deinit_sdcard_clock(evt,
+				// periph_set));
 
-				ESP_ERROR_CHECK(init_radio(NULL, 0, evt));
-
-			time_err:;
+				// ESP_ERROR_CHECK(init_radio(NULL, 0, evt));
 			}
+		} else if (msg.cmd == 6970 && msg.source_type == 6970 &&
+		           (int)msg.data == SDC_CLOCK_DONE) {
+			sd_play_deinit_sdcard_clock(evt, periph_set);
+			ESP_ERROR_CHECK(init_radio(NULL, 0, evt));
 		}
+
+		sd_play_run(&msg);
 
 		if ((msg.source_type == PERIPH_ID_TOUCH ||
 		     msg.source_type == PERIPH_ID_BUTTON ||

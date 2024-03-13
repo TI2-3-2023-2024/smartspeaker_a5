@@ -10,12 +10,7 @@
 
 #include <stdlib.h>
 
-#define SEND_UI_CMD(command)                                                   \
-	audio_event_iface_sendout(evt_ptr, &(audio_event_iface_msg_t){             \
-	                                       .cmd         = 6969,                \
-	                                       .source_type = 6969,                \
-	                                       .data        = (void *)(command),   \
-	                                   });
+#define SEND_UI_CMD(command) SEND_CMD(6969, 6969, command, evt_ptr)
 
 static int isPartyModeOn = 0;
 static int isBLuetoothOn = 0;

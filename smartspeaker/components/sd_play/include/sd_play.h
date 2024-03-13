@@ -2,6 +2,15 @@
 #define SD_PLAY_H
 #pragma once
 
+#include "audio_event_iface.h"
+
+enum sd_cmd {
+	SDC_CLOCK_DONE = 0,
+};
+
+// TODO: documentation
+void sd_play_run(audio_event_iface_msg_t *msg);
+
 /**
  * @brief Sets .mp3 file up to be played.
  * @param urlToAudioFile is a pointer to a string that is the path to the mp3
@@ -39,6 +48,6 @@ void sd_play_init_sdcard(esp_periph_set_handle_t periph_set);
  * @param periph_set peripheral set to add sdcard player service to.
  */
 esp_err_t sd_play_deinit_sdcard_clock(audio_event_iface_handle_t evt,
-                               esp_periph_set_handle_t periph_set);
+                                      esp_periph_set_handle_t periph_set);
 
 #endif /* SD_PLAY_H */
