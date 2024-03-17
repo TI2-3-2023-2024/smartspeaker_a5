@@ -45,7 +45,6 @@ static esp_periph_set_handle_t periph_set;
 static audio_event_iface_handle_t evt;
 
 static int player_volume;
-static int use_led_strip = 1;
 
 struct state speaker_states[SPEAKER_STATE_MAX] = {
 	{ .enter     = radio_init,
@@ -117,18 +116,19 @@ static void app_init(void) {
 
 	/* Initialise SNTP*/
 	ESP_LOGI(TAG, "Initialise NTP");
-	sntp_mod_init();
+	// sntp_mod_init();
 
-	ESP_LOGI(TAG, "Initialise audio analyser");
-	audio_analyser_init();
+	// ESP_LOGI(TAG, "Initialise audio analyser");
+	// audio_analyser_init();
 
 #ifdef CONFIG_LCD_ENABLED
-	xTaskCreate(&lcd1602_task, "lcd1602_task", 2048, evt, 5, NULL);
+	xTaskCreate(&lcd1602_task, "lcd1602_task", 3000, evt, 5, NULL);
 #endif
 
 	// Starts audio analyser task
-	xTaskCreate(tone_detection_task, "tone_detection_task", 2048, NULL, 5,
-	            NULL);
+	// xTaskCreate(tone_detection_task, "tone_detection_task", 2048, NULL, 5,
+	//             NULL);
+	ESP_LOGI(TAG, "After task creaton in main file");
 }
 
 static void app_free(void) {
@@ -174,7 +174,7 @@ static void set_volume(int volume) {
 	if (volume > 100) volume = 100;
 	if (volume < 0) volume = 0;
 #ifdef CONFIG_LED_CONTROLLER_ENABLED
-	if (use_led_strip) led_controller_set_leds_volume(volume);
+	led_controller_show_volume(volume);
 #endif
 	audio_hal_set_volume(board_handle->audio_hal, volume);
 	player_volume = volume;
@@ -192,19 +192,8 @@ static void handle_touch_input(audio_event_iface_msg_t *msg) {
 			if (speaker_state_index == SPEAKER_STATE_RADIO)
 				switch_state(SPEAKER_STATE_BLUETOOTH, NULL);
 			else switch_state(SPEAKER_STATE_RADIO, NULL);
-		} else if ((int)msg->data == get_input_set_id()) {
-			ESP_LOGI(TAG, "[ * ] [Set] touch tap event");
-			if (use_led_strip == 1) {
-#ifdef CONFIG_LED_CONTROLLER_ENABLED
-				led_controller_turn_off();
-				use_led_strip = 0;
-#endif
-			} else {
-#ifdef CONFIG_LED_CONTROLLER_ENABLED
-				led_controller_set_leds_volume(player_volume);
-				use_led_strip = 1;
-#endif
-			}
+			//		} else if ((int)msg->data == get_input_set_id()) {
+			//			ESP_LOGI(TAG, "[ * ] [Set] touch tap event");
 		} else if ((int)msg->data == get_input_volup_id()) {
 			ESP_LOGI(TAG, "[ * ] [Vol+] touch tap event");
 			set_volume(player_volume + 10);
@@ -235,10 +224,8 @@ static void handle_ui_input(audio_event_iface_msg_t *msg) {
 			case UIC_CHANNEL_DOWN:
 				if (speaker_state_index == SPEAKER_STATE_RADIO) channel_down();
 				break;
-			case UIC_PARTY_MODE_ON:
-			case UIC_PARTY_MODE_OFF:
-				ESP_LOGW(TAG, "Party mode feature not yet implemented");
-				break;
+			case UIC_PARTY_MODE_ON: set_party_mode(PMC_RAINBOW_FLASH); break;
+			case UIC_PARTY_MODE_OFF: set_party_mode(PMC_OFF); break;
 			case UIC_ASK_CLOCK_TIME:
 				// struct timeval tv;
 				// int ret = gettimeofday(&tv, NULL);
