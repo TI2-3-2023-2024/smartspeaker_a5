@@ -62,9 +62,7 @@ static void detect_freq(int target_freq, float magnitude) {
 		    "Detection at frequency %d Hz (magnitude %.2f, log magnitude %.2f)",
 		    target_freq, magnitude, logMagnitude);
 #ifdef CONFIG_LED_CONTROLLER_ENABLED
-		led_controller_turn_off();
-		vTaskDelay(pdMS_TO_TICKS(100));
-		led_controller_turn_on_white_delay();
+		set_party_mode(PMC_RAINBOW_FLASH);
 #endif
 	}
 }
