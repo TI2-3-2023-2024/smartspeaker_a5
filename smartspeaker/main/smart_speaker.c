@@ -123,11 +123,11 @@ static void app_init(void) {
 	audio_analyser_init();
 
 #ifdef CONFIG_LCD_ENABLED
-	xTaskCreate(&lcd1602_task, "lcd1602_task", 2048, evt, 5, NULL);
+	xTaskCreate(&lcd1602_task, "lcd1602_task", 3000, evt, 5, NULL);
 #endif
 
 	// Starts audio analyser task
-	xTaskCreate(tone_detection_task, "tone_detection_task", 2048, NULL, 5,
+	xTaskCreate(tone_detection_task, "tone_detection_task", 3000, NULL, 5,
 	            NULL);
 }
 
