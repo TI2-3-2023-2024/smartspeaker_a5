@@ -1,0 +1,9 @@
+menu "Bluetooth Sink"
+
+config BT_SINK_DEVICE_NAME
+	string "Bluetooth device name"
+	default "smartspeaker_a5"
+	help
+		Name by which the smart speaker shows up using bluetooth
+
+endmenu

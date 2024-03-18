@@ -1,0 +1,21 @@
+menu "WI-FI"
+
+config WIFI_SSID
+	string "WI-FI SSID"
+	default "ssid"
+	help
+		Name of the WIFI access point
+
+config WIFI_PASS
+	string "WI-FI Password"
+	default "password"
+	help
+		Password for the WIFI access point
+
+config WIFI_RETRY
+	int "WI-FI RETRY"
+	default 0
+	help
+        Set the Maximum retry to avoid station reconnecting to the AP unlimited when the AP is really inexistent, 0 for infinite retry.
+
+endmenu
