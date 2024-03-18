@@ -18,6 +18,7 @@
 #include "periph_button.h"
 #include "periph_touch.h"
 #include <string.h>
+#include "driver/gpio.h"
 
 static const char *TAG = "BT_SINK";
 
@@ -34,6 +35,16 @@ static void bt_app_avrc_ct_cb(esp_avrc_ct_cb_event_t event,
 			break;
 		}
 		default: break;
+	}
+}
+
+static void blinkLED (void *pvParameters) {
+	gpio_set_direction(22, GPIO_MODE_OUTPUT);
+	while(1) {
+		gpio_set_level(22, 1);
+		vTaskDelay(500/portTICK_PERIOD_MS);
+		gpio_set_level(22, 0);
+		vTaskDelay(500/portTICK_PERIOD_MS);
 	}
 }
 
@@ -70,6 +81,9 @@ esp_err_t bt_sink_init(audio_element_handle_t *elems, size_t count,
                        esp_periph_set_handle_t periph_set, void *args) {
 	ESP_LOGI(TAG, "Create Bluetooth peripheral");
 	bt_periph = bluetooth_service_create_periph();
+
+	TaskHandle_t xBlinkLedTask = NULL;
+	xTaskCreate(blinkLED, "BT_BLINK", 512, NULL, 5, &xBlinkLedTask);
 
 	ESP_LOGI(TAG, "Start all peripherals");
 	ESP_RETURN_ON_ERROR(esp_periph_start(periph_set, bt_periph), TAG, "");

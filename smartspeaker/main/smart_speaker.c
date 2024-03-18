@@ -121,7 +121,7 @@ static void app_init(void) {
 
 	/* Initialise SNTP*/
 	ESP_LOGI(TAG, "Initialise NTP");
-	// sntp_mod_init();
+	sntp_mod_init();
 
 	ESP_LOGI(TAG, "Initialise web interface");
 	wi_init(evt);
@@ -278,8 +278,8 @@ void app_main() {
 
 	set_volume(50);
 
-	wifi_wait(portMAX_DELAY);
-	switch_state(SPEAKER_STATE_RADIO, NULL);
+	// wifi_wait(portMAX_DELAY);
+	switch_state(SPEAKER_STATE_BLUETOOTH, NULL);
 	/* radio_init(NULL, 0, evt, periph_set, NULL); */
 
 	/* Main eventloop */
