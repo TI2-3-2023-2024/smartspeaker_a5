@@ -35,7 +35,7 @@
 	(GOERTZEL_FRAME_LENGTH_MS * GOERTZEL_SAMPLE_RATE_HZ / 1000)
 
 // Detect a tone when log manitude is above this value
-#define GOERTZEL_DETECTION_THRESHOLD 20.0f
+	#define GOERTZEL_DETECTION_THRESHOLD 30.0f
 
 // Audio capture sample rate [Hz]
 #define AUDIO_SAMPLE_RATE 8000
