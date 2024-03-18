@@ -16,9 +16,11 @@ static int isPartyModeOn = 0;
 static int isBLuetoothOn = 0;
 static int isRadioOn     = 0;
 
+static int language = 0;
+
 enum language_state {
-	ENGLISH,
 	DUTCH,
+	ENGLISH,
 };
 
 static audio_event_iface_handle_t evt_ptr = NULL;
