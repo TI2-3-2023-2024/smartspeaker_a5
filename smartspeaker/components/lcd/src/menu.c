@@ -16,12 +16,11 @@ static int isPartyModeOn = 0;
 static int isBLuetoothOn = 0;
 static int isRadioOn     = 0;
 
-static int language = 0;
-
 enum language_state {
 	DUTCH,
 	ENGLISH,
 };
+static enum language_state current_language = DUTCH;
 
 static audio_event_iface_handle_t evt_ptr = NULL;
 static const char *TAG                    = "MENU";
@@ -112,6 +111,22 @@ static void requestTime(void *args) {
 	audio_event_iface_sendout(evt_ptr, &msg);
 }
 
+/**
+ * @brief Changes current languages of the speaker to dutch
+ */
+static void change_language_dutch(void *args) {
+	current_language = DUTCH;
+	ESP_LOGI(TAG, "%d", current_language);
+}
+
+/**
+ * @brief Changes current languages of the speaker to english
+ */
+static void change_language_english(void *args) {
+	current_language = ENGLISH;
+	ESP_LOGI(TAG, "%d", current_language);
+}
+
 static void screen_draw_menu(struct screen *screen, int redraw);
 static void screen_event_handler_menu(struct screen *screen, enum button_id);
 static void screen_draw_welcome(struct screen *screen, int redraw);
@@ -130,8 +145,8 @@ static struct menu_item menu_clock_items[] = {
 };
 
 static struct menu_item menu_languages_items[] = {
-	{ .type = MENU_TYPE_FUNCTION, .name = "English", .data.function = plusVolume },
-	{ .type = MENU_TYPE_FUNCTION, .name = "Nederlands", .data.function = minVolume },
+	{ .type = MENU_TYPE_FUNCTION, .name = "English", .data.function = change_language_english },
+	{ .type = MENU_TYPE_FUNCTION, .name = "Nederlands", .data.function = change_language_dutch },
 	{ .type = MENU_TYPE_MENU, .name = "Back", .data.menu = &menu_clock },
 };
 
