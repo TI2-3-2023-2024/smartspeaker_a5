@@ -291,6 +291,8 @@ void app_main() {
 
 		ESP_LOGI(TAG, "Received event with cmd: %d, source_type %d and data %p",
 		         msg.cmd, msg.source_type, msg.data);
+		
+		
 
 		handle_ui_input(&msg);
 		handle_touch_input(&msg);

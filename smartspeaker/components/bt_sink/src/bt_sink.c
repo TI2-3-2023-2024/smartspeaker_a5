@@ -7,6 +7,7 @@
 #include "audio_pipeline.h"
 #include "bluetooth_service.h"
 #include "board.h"
+#include "driver/gpio.h"
 #include "esp_check.h"
 #include "esp_log.h"
 #include "esp_peripherals.h"
@@ -18,7 +19,6 @@
 #include "periph_button.h"
 #include "periph_touch.h"
 #include <string.h>
-#include "driver/gpio.h"
 
 static const char *TAG = "BT_SINK";
 
@@ -38,13 +38,13 @@ static void bt_app_avrc_ct_cb(esp_avrc_ct_cb_event_t event,
 	}
 }
 
-static void blinkLED (void *pvParameters) {
+static void blinkLED(void *pvParameters) {
 	gpio_set_direction(22, GPIO_MODE_OUTPUT);
-	while(1) {
+	while (1) {
 		gpio_set_level(22, 1);
-		vTaskDelay(500/portTICK_PERIOD_MS);
+		vTaskDelay(500 / portTICK_PERIOD_MS);
 		gpio_set_level(22, 0);
-		vTaskDelay(500/portTICK_PERIOD_MS);
+		vTaskDelay(500 / portTICK_PERIOD_MS);
 	}
 }
 
@@ -168,7 +168,9 @@ esp_err_t bt_sink_run(audio_event_iface_msg_t *msg, void *args) {
 	/* Stop when the Bluetooth is disconnected or suspended */
 	if (msg->source_type == PERIPH_ID_BLUETOOTH &&
 	    msg->source == (void *)bt_periph) {
-		if (msg->cmd == PERIPH_BLUETOOTH_DISCONNECTED) {
+		if (msg->cmd == PERIPH_BLUETOOTH_CONNECTED) {
+			ESP_LOGI(TAG, "Bluetooth connected");
+		} else if (msg->cmd == PERIPH_BLUETOOTH_DISCONNECTED) {
 			ESP_LOGW(TAG, "[ * ] Bluetooth disconnected");
 		}
 	}
