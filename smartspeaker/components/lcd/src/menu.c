@@ -16,10 +16,6 @@ static int isPartyModeOn = 0;
 static int isBLuetoothOn = 0;
 static int isRadioOn     = 0;
 
-enum language_state {
-	DUTCH,
-	ENGLISH,
-};
 static enum language_state current_language = DUTCH;
 
 static audio_event_iface_handle_t evt_ptr = NULL;
@@ -104,7 +100,7 @@ static void requestTime(void *args) {
 	enum ui_cmd ui_command      = UIC_ASK_CLOCK_TIME;
 	audio_event_iface_msg_t msg = {
 		.cmd         = 6969,
-		.source_type = 6969,
+		.source_type = 6969 + current_language,
 		.data        = (void *)ui_command,
 	};
 

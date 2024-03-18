@@ -127,8 +127,8 @@ static void app_init(void) {
 #endif
 
 	// Starts audio analyser task
-	xTaskCreate(tone_detection_task, "tone_detection_task", 3000, NULL, 5,
-	            NULL);
+	//xTaskCreate(tone_detection_task, "tone_detection_task", 3000, NULL, 5,
+	            //NULL);
 }
 
 static void app_free(void) {
@@ -217,7 +217,7 @@ static void handle_touch_input(audio_event_iface_msg_t *msg) {
 
 static void handle_ui_input(audio_event_iface_msg_t *msg) {
 	// Event from LCD buttons/UI
-	if (msg->cmd == 6969 && msg->source_type == 6969) {
+	if (msg->cmd == 6969) {
 		enum ui_cmd ui_command = (enum ui_cmd)msg->data;
 		ESP_LOGI(TAG, "Received ui event: %d", ui_command);
 

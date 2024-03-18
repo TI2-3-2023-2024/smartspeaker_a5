@@ -4,8 +4,6 @@
 #include "i2s_stream.h"
 #include "mp3_decoder.h"
 
-#include "esp_log.h"
-
 #include "board.h"
 #include "esp_log.h"
 #include "esp_peripherals.h"
@@ -59,6 +57,8 @@ struct tm *get_cur_time() {
 
 esp_err_t sd_play_run(audio_event_iface_msg_t *msg, void *args) {
 	if (!is_sd_init) return ESP_FAIL;
+
+	int language = msg->source_type - 6969;
 
 	bool playback_finished = (msg->source_type == AUDIO_ELEMENT_TYPE_ELEMENT &&
 	                          msg->source == (void *)i2s_stream_writer &&

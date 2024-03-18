@@ -28,6 +28,11 @@ enum menu_type {
 	MENU_TYPE_SCREEN,
 };
 
+enum language_state {
+	DUTCH,
+	ENGLISH,
+};
+
 struct screen;
 typedef void (*screen_event_handler)(struct screen *, enum button_id);
 typedef void (*screen_draw)(struct screen *, int redraw);
