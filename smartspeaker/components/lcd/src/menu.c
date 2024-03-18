@@ -16,6 +16,11 @@ static int isPartyModeOn = 0;
 static int isBLuetoothOn = 0;
 static int isRadioOn     = 0;
 
+enum language_state {
+	ENGLISH,
+	DUTCH,
+};
+
 static audio_event_iface_handle_t evt_ptr = NULL;
 static const char *TAG                    = "MENU";
 
