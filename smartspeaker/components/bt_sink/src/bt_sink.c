@@ -52,6 +52,7 @@ static esp_periph_handle_t bt_periph;
 static audio_pipeline_handle_t pipeline;
 static audio_element_handle_t bt_stream_reader;
 static audio_element_handle_t output_stream_writer;
+static TaskHandle_t xBlinkLedTask = NULL;
 
 esp_err_t bt_sink_pre_init(void) {
 	/* This needs to be in it's own init/deinit function since it should only be
@@ -82,7 +83,6 @@ esp_err_t bt_sink_init(audio_element_handle_t *elems, size_t count,
 	ESP_LOGI(TAG, "Create Bluetooth peripheral");
 	bt_periph = bluetooth_service_create_periph();
 
-	TaskHandle_t xBlinkLedTask = NULL;
 	xTaskCreate(blinkLED, "BT_BLINK", 512, NULL, 5, &xBlinkLedTask);
 
 	ESP_LOGI(TAG, "Start all peripherals");
@@ -170,6 +170,7 @@ esp_err_t bt_sink_run(audio_event_iface_msg_t *msg, void *args) {
 	    msg->source == (void *)bt_periph) {
 		if (msg->cmd == PERIPH_BLUETOOTH_CONNECTED) {
 			ESP_LOGI(TAG, "Bluetooth connected");
+			vTaskDelete(xBlinkLedTask);
 		} else if (msg->cmd == PERIPH_BLUETOOTH_DISCONNECTED) {
 			ESP_LOGW(TAG, "[ * ] Bluetooth disconnected");
 		}
