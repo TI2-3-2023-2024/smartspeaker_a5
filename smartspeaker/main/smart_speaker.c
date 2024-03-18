@@ -7,6 +7,7 @@
 #include "sd_play.h"
 #include "sntp-mod.h"
 #include "utils/macro.h"
+#include "web_interface.h"
 #include "wifi.h"
 
 #include "audio_event_iface.h"
@@ -118,6 +119,9 @@ static void app_init(void) {
 	/* Initialise SNTP*/
 	ESP_LOGI(TAG, "Initialise NTP");
 	sntp_mod_init();
+
+	ESP_LOGI(TAG, "Initialise web interface");
+	wi_init(evt);
 
 	ESP_LOGI(TAG, "Initialise audio analyser");
 	audio_analyser_init();
