@@ -10,6 +10,7 @@
 #include "utils/macro.h"
 #include "web_interface.h"
 #include "wifi.h"
+#include "hue.h"
 
 #include "audio_event_iface.h"
 #include "board.h"
@@ -143,6 +144,10 @@ static void app_init(void) {
 	// Starts audio analyser task
 	xTaskCreate(tone_detection_task, "tone_detection_task", 3000, NULL, 5,
 	            &detect_task);
+
+	/* Initialize Hue */
+	ESP_LOGI(TAG, "Initialise Hue");
+	init_hue();
 }
 
 static void app_free(void) {
@@ -330,6 +335,9 @@ void app_main() {
 	app_init();
 
 	set_volume(50);
+
+	/* Hue test */
+	enable_hue(true);
 
 	/* Cannot start this because the tone detection task is still running. */
 	// wifi_wait(portMAX_DELAY);
