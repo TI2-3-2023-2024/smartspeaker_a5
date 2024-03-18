@@ -118,12 +118,21 @@ static void screen_draw_welcome(struct screen *screen, int redraw);
 static void screen_event_handler_welcome(struct screen *screen, enum button_id);
 
 static struct menu menu_main;
+static struct menu menu_languages;
+static struct menu menu_clock;
 
 static struct menu_item menu_clock_items[] = {
 	{ .type = MENU_TYPE_FUNCTION, .name = "+", .data.function = plusVolume },
 	{ .type = MENU_TYPE_FUNCTION, .name = "-", .data.function = minVolume },
 	{ .type = MENU_TYPE_FUNCTION, .name = "Time?", .data.function = requestTime },
+	{ .type = MENU_TYPE_MENU, .name = "Languages", .data.menu = &menu_languages },
 	{ .type = MENU_TYPE_MENU, .name = "Back", .data.menu = &menu_main },
+};
+
+static struct menu_item menu_languages_items[] = {
+	{ .type = MENU_TYPE_FUNCTION, .name = "English", .data.function = plusVolume },
+	{ .type = MENU_TYPE_FUNCTION, .name = "Nederlands", .data.function = minVolume },
+	{ .type = MENU_TYPE_MENU, .name = "Back", .data.menu = &menu_clock },
 };
 
 static struct menu_item menu_radio_items[] = {
@@ -159,6 +168,12 @@ static struct menu menu_clock = {
 	.size  = ARRAY_SIZE(menu_clock_items),
 	.index = 0,
 	.items = menu_clock_items,
+};
+
+static struct menu menu_languages = {
+	.size  = ARRAY_SIZE(menu_languages_items),
+	.index = 0,
+	.items = menu_languages_items,
 };
 
 static struct menu menu_radio = {
