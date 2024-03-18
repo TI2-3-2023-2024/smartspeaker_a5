@@ -2,6 +2,7 @@
 #include "audio_pipeline.h"
 #include "fatfs_stream.h"
 #include "i2s_stream.h"
+#include "lcd.h"
 #include "mp3_decoder.h"
 
 #include "board.h"
@@ -58,29 +59,52 @@ struct tm *get_cur_time() {
 esp_err_t sd_play_run(audio_event_iface_msg_t *msg, void *args) {
 	if (!is_sd_init) return ESP_FAIL;
 
-	int language = msg->source_type - 6969;
-
 	bool playback_finished = (msg->source_type == AUDIO_ELEMENT_TYPE_ELEMENT &&
 	                          msg->source == (void *)i2s_stream_writer &&
 	                          msg->cmd == AEL_MSG_CMD_REPORT_STATUS &&
 	                          (((int)msg->data == AEL_STATUS_STATE_STOPPED) ||
 	                           ((int)msg->data == AEL_STATUS_STATE_FINISHED)));
+	char buf[50];
+
+	if (msg->source_type == AUDIO_ELEMENT_TYPE_ELEMENT &&
+	    msg->source == (void *)mp3_decoder &&
+	    msg->cmd == AEL_MSG_CMD_REPORT_MUSIC_INFO) {
+		audio_element_info_t music_info = { 0 };
+		audio_element_getinfo(mp3_decoder, &music_info);
+
+		ESP_LOGI(TAG,
+		         "[ * ] Receive music info from mp3, "
+		         "sample_rates=%d, bits=%d, ch=%d",
+		         music_info.sample_rates, music_info.bits, music_info.channels);
+
+		audio_element_set_music_info(i2s_stream_writer, music_info.sample_rates,
+		                             music_info.channels, music_info.bits);
+		i2s_stream_set_clk(i2s_stream_writer, music_info.sample_rates,
+		                   music_info.bits, music_info.channels);
+	}
+
+	static int language;
+	if (msg->source_type == 6969 && msg->cmd == 6970) {
+		language = (int)((struct ui_cmd_data *)msg->data)->data;
+	}
 
 	if (cur_play_state == SD_PLAY_PLAYING_NONE) {
 		cur_play_state = SD_PLAY_PLAYING_CU;
-		sd_play_play_file("/sdcard/nl/cu.mp3");
+		snprintf(buf, 50, "/sdcard/%d/cu.mp3", language);
+		sd_play_play_file(buf);
 	} else if (playback_finished) {
-		char buf[50];
 		struct tm *tm_handle = get_cur_time();
 		switch (cur_play_state) {
 			case SD_PLAY_PLAYING_CU:
 				cur_play_state = SD_PLAY_PLAYING_HOUR;
-				snprintf(buf, 50, "/sdcard/nl/%d.mp3", tm_handle->tm_hour);
+				snprintf(buf, 50, "/sdcard/%d/%d.mp3", language,
+				         tm_handle->tm_hour);
 				sd_play_play_file(buf);
 				break;
 			case SD_PLAY_PLAYING_HOUR:
 				cur_play_state = SD_PLAY_PLAYING_MIN;
-				snprintf(buf, 50, "/sdcard/nl/%d.mp3", tm_handle->tm_min);
+				snprintf(buf, 50, "/sdcard/%d/%d.mp3", language,
+				         tm_handle->tm_min);
 				sd_play_play_file(buf);
 				break;
 			case SD_PLAY_PLAYING_MIN:
@@ -90,6 +114,7 @@ esp_err_t sd_play_run(audio_event_iface_msg_t *msg, void *args) {
 			default: break;
 		}
 	}
+
 	return ESP_OK;
 }
 

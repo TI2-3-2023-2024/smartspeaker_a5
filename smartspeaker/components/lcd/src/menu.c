@@ -97,14 +97,11 @@ static void minVolume(void *args) {
 static void requestTime(void *args) {
 	ESP_LOGI(TAG, "volume down");
 
-	enum ui_cmd ui_command      = UIC_ASK_CLOCK_TIME;
-	audio_event_iface_msg_t msg = {
-		.cmd         = 6969,
-		.source_type = 6969 + current_language,
-		.data        = (void *)ui_command,
+	static struct ui_cmd_data cmd = {
+		.cmd = UIC_ASK_CLOCK_TIME,
 	};
-
-	audio_event_iface_sendout(evt_ptr, &msg);
+	cmd.data = (void *)current_language;
+	SEND_CMD(6970, 6969, &cmd, evt_ptr);
 }
 
 /**
@@ -135,14 +132,22 @@ static struct menu menu_clock;
 static struct menu_item menu_clock_items[] = {
 	{ .type = MENU_TYPE_FUNCTION, .name = "+", .data.function = plusVolume },
 	{ .type = MENU_TYPE_FUNCTION, .name = "-", .data.function = minVolume },
-	{ .type = MENU_TYPE_FUNCTION, .name = "Time?", .data.function = requestTime },
-	{ .type = MENU_TYPE_MENU, .name = "Languages", .data.menu = &menu_languages },
+	{ .type          = MENU_TYPE_FUNCTION,
+	  .name          = "Time?",
+	  .data.function = requestTime },
+	{ .type      = MENU_TYPE_MENU,
+	  .name      = "Languages",
+	  .data.menu = &menu_languages },
 	{ .type = MENU_TYPE_MENU, .name = "Back", .data.menu = &menu_main },
 };
 
 static struct menu_item menu_languages_items[] = {
-	{ .type = MENU_TYPE_FUNCTION, .name = "English", .data.function = change_language_english },
-	{ .type = MENU_TYPE_FUNCTION, .name = "Nederlands", .data.function = change_language_dutch },
+	{ .type          = MENU_TYPE_FUNCTION,
+	  .name          = "English",
+	  .data.function = change_language_english },
+	{ .type          = MENU_TYPE_FUNCTION,
+	  .name          = "Nederlands",
+	  .data.function = change_language_dutch },
 	{ .type = MENU_TYPE_MENU, .name = "Back", .data.menu = &menu_clock },
 };
 
@@ -371,10 +376,6 @@ void lcd1602_task(void *pvParameter) {
 		// Check for changes in button states
 		if (btnUp != prevBtnUp || btnOk != prevBtnOk ||
 		    btnDown != prevBtnDown) {
-
-			ESP_LOGI(TAG, "Button Up: %d", btnUp);
-			ESP_LOGI(TAG, "Button Down: %d", btnDown);
-			ESP_LOGI(TAG, "Button OK: %d", btnOk);
 
 			prevBtnUp   = btnUp;
 			prevBtnOk   = btnOk;

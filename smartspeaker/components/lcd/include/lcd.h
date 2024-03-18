@@ -13,6 +13,11 @@ enum ui_cmd {
 	UIC_ASK_CLOCK_TIME,
 };
 
+struct ui_cmd_data {
+	enum ui_cmd cmd;
+	void *data;
+};
+
 void lcd1602_task(void *param);
 
 #endif /* LCD_H */
