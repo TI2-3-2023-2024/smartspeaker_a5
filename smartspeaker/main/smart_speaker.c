@@ -4,6 +4,7 @@
 #include "lcd.h"
 #include "led_controller_commands.h"
 #include "radio.h"
+#include "sd_io.h"
 #include "sd_play.h"
 #include "sntp-mod.h"
 #include "utils/macro.h"
@@ -122,6 +123,14 @@ static void app_init(void) {
 	wifi_init();
 
 	wifi_wait(portMAX_DELAY);
+
+	ESP_LOGI(TAG, "Testing SD IO");
+	struct sd_io_startup_opts opts = { .state      = SPEAKER_STATE_CLOCK,
+		                               .volume     = 69,
+		                               .party_mode = true };
+	sd_io_init();
+	sd_io_save_opts(opts);
+	sd_io_deinit();
 
 	/* Initialise SNTP*/
 	ESP_LOGI(TAG, "Initialise NTP");
