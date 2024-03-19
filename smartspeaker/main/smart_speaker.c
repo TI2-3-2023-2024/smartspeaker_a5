@@ -266,11 +266,6 @@ static void handle_ui_input(audio_event_iface_msg_t *msg) {
 
 				// ESP_ERROR_CHECK(init_radio(NULL, 0, evt));
 				break;
-			case BT_PAIRING:
-				// switch_state(SPEAKER_STATE_CLOCK, NULL);
-				// play_audio_through_string("/sdcard/bt_status/pairing_mode");
-				// switch_state(SPEAKER_STATE_BLUETOOTH, NULL);
-				break;
 		}
 	} else if (msg->cmd == 6970 && msg->source_type == 6970 &&
 	           (int)msg->data == SDC_CLOCK_DONE) {

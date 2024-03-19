@@ -11,7 +11,6 @@ enum ui_cmd {
 	UIC_PARTY_MODE_ON,
 	UIC_PARTY_MODE_OFF,
 	UIC_ASK_CLOCK_TIME,
-	BT_PAIRING
 };
 
 struct ui_cmd_data {
