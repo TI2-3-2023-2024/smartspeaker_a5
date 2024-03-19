@@ -1,4 +1,4 @@
-set(requires bluetooth_service esp_peripherals sd_play utils lcd)
+set(requires bluetooth_service esp_peripherals)
 
 idf_component_register(SRCS "src/bt_sink.c"
                        INCLUDE_DIRS "include"

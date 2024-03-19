@@ -19,11 +19,6 @@
 #include "periph_button.h"
 #include "periph_touch.h"
 #include <string.h>
-#include "sd_play.h"
-#include "utils/macro.h"
-#include "lcd.h"
-
-#define SEND_UI_CMD(command) SEND_CMD(6969, 6969, command, evt)
 
 static const char *TAG = "BT_SINK";
 
