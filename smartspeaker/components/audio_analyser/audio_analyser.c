@@ -46,7 +46,7 @@
 // Audio capture sample rate [Hz]
 #define AUDIO_SAMPLE_RATE 8000
 
-static const int GOERTZEL_DETECT_FREQS[] = { 880 };
+static const int GOERTZEL_DETECT_FREQS[] = { 450, 500, 550 };
 
 static const char *TAG = "AUDIO_ANALYSER";
 
@@ -122,7 +122,7 @@ void tone_detection_task(void *args) {
 	audio_pipeline_run(pipeline);
 
 	while (1) {
-		vTaskDelay(pdMS_TO_TICKS(1000));
+		vTaskDelay(pdMS_TO_TICKS(500));
 
 		xSemaphoreTake(semphr, portMAX_DELAY);
 
