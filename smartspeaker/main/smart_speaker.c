@@ -231,6 +231,7 @@ static void handle_ui_input(audio_event_iface_msg_t *msg) {
 
 		switch (ui_command) {
 			case UIC_SWITCH_OUTPUT:
+
 				if (speaker_state_index == SPEAKER_STATE_RADIO)
 					switch_state(SPEAKER_STATE_BT_PAIRING, NULL);
 				else switch_state(SPEAKER_STATE_RADIO, NULL);

@@ -43,23 +43,13 @@ static void bt_app_avrc_ct_cb(esp_avrc_ct_cb_event_t event,
 	}
 }
 
-static void blinkLED(void *pvParameters) {
-	gpio_set_direction(22, GPIO_MODE_OUTPUT);
-	while (1) {
-		gpio_set_level(22, 1);
-		vTaskDelay(500 / portTICK_PERIOD_MS);
-		gpio_set_level(22, 0);
-		vTaskDelay(500 / portTICK_PERIOD_MS);
-	}
-}
-
 static esp_periph_handle_t bt_periph;
 static audio_pipeline_handle_t pipeline;
 static audio_element_handle_t bt_stream_reader;
 static audio_element_handle_t output_stream_writer;
-static TaskHandle_t xBlinkLedTask = NULL;
 
 esp_err_t bt_sink_pre_init(void) {
+	gpio_set_direction(22, GPIO_MODE_OUTPUT);
 	/* This needs to be in it's own init/deinit function since it should only be
 	 * called once. */
 	ESP_LOGI(TAG, "Create Bluetooth service");
@@ -87,8 +77,6 @@ esp_err_t bt_sink_init(audio_element_handle_t *elems, size_t count,
                        esp_periph_set_handle_t periph_set, void *args) {
 	ESP_LOGI(TAG, "Create Bluetooth peripheral");
 	bt_periph = bluetooth_service_create_periph();
-
-	xTaskCreate(blinkLED, "BT_BLINK", 512, NULL, 5, &xBlinkLedTask);
 
 	ESP_LOGI(TAG, "Start all peripherals");
 	ESP_RETURN_ON_ERROR(esp_periph_start(periph_set, bt_periph), TAG, "");
@@ -148,10 +136,6 @@ esp_err_t bt_sink_deinit(audio_element_handle_t *elems, size_t count,
 	audio_event_iface_remove_listener(
 	    esp_periph_set_get_event_iface(periph_set), evt);
 
-
-	vTaskDelete(xBlinkLedTask);
-	gpio_set_level(22, 0);
-
 	return ESP_OK;
 }
 
@@ -179,11 +163,10 @@ esp_err_t bt_sink_run(audio_event_iface_msg_t *msg, void *args) {
 	    msg->source == (void *)bt_periph) {
 		if (msg->cmd == PERIPH_BLUETOOTH_CONNECTED) {
 			ESP_LOGI(TAG, "Bluetooth connected");
-			vTaskDelete(xBlinkLedTask);
 			gpio_set_level(22, 1);
 		} else if (msg->cmd == PERIPH_BLUETOOTH_DISCONNECTED) {
 			ESP_LOGW(TAG, "[ * ] Bluetooth disconnected");
-			xTaskCreate(blinkLED, "BT_BLINK", 512, NULL, 5, &xBlinkLedTask);
+			gpio_set_level(22, 0);
 		}
 	}
 	/* Stop when the last pipeline element (i2s_stream_writer in this case)
