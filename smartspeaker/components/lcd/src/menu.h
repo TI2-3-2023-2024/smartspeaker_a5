@@ -31,6 +31,8 @@ enum menu_type {
 enum language_state {
 	DUTCH,
 	ENGLISH,
+	GERMAN,
+	FRENCH,
 };
 
 struct screen;

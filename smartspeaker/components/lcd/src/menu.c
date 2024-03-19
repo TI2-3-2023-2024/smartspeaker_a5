@@ -120,6 +120,22 @@ static void change_language_english(void *args) {
 	ESP_LOGI(TAG, "%d", current_language);
 }
 
+/**
+ * @brief Changes current languages of the speaker to german
+ */
+static void change_language_german(void *args) {
+	current_language = GERMAN;
+	ESP_LOGI(TAG, "%d", current_language);
+}
+
+/**
+ * @brief Changes current languages of the speaker to french
+ */
+static void change_language_french(void *args) {
+	current_language = FRENCH;
+	ESP_LOGI(TAG, "%d", current_language);
+}
+
 static void screen_draw_menu(struct screen *screen, int redraw);
 static void screen_event_handler_menu(struct screen *screen, enum button_id);
 static void screen_draw_welcome(struct screen *screen, int redraw);
@@ -148,7 +164,14 @@ static struct menu_item menu_languages_items[] = {
 	{ .type          = MENU_TYPE_FUNCTION,
 	  .name          = "Nederlands",
 	  .data.function = change_language_dutch },
+	{ .type          = MENU_TYPE_FUNCTION,
+	  .name          = "Deutsch",
+	  .data.function = change_language_german },
+	{ .type          = MENU_TYPE_FUNCTION,
+	  .name          = "français",
+	  .data.function = change_language_french },
 	{ .type = MENU_TYPE_MENU, .name = "Back", .data.menu = &menu_clock },
+
 };
 
 static struct menu_item menu_radio_items[] = {
