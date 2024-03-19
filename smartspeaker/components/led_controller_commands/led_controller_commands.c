@@ -6,14 +6,14 @@
 #include <driver/i2c.h>
 
 static const char *TAG        = "LED_CONTROLLER_MASTER";
-static enum pm_cmd cur_pm_cmd = PMC_OFF;
+static enum pm_cmd cur_pm_cmd = SC_OFF;
 
 esp_err_t led_controller_config_master(void) {
 	i2c_config_t conf_master = {
 		.mode             = I2C_MODE_MASTER,
-		.sda_io_num       = 18,
+		.sda_io_num       = CONFIG_I2C_MASTER_SDA,
 		.sda_pullup_en    = GPIO_PULLUP_ENABLE,
-		.scl_io_num       = 23,
+		.scl_io_num       = CONFIG_I2C_MASTER_SCL,
 		.scl_pullup_en    = GPIO_PULLUP_ENABLE,
 		.master.clk_speed = 10000,
 	};
@@ -51,7 +51,7 @@ static esp_err_t send_command(uint8_t *msg, size_t len) {
 }
 
 esp_err_t set_party_mode(enum pm_cmd cmd) {
-	if (cmd == PMC_SET_VOLUME) return ESP_ERR_INVALID_STATE;
+	if (cmd == SC_SET_VOLUME) return ESP_ERR_INVALID_STATE;
 
 	if (cur_pm_cmd != cmd) {
 		cur_pm_cmd = cmd;
@@ -65,6 +65,6 @@ esp_err_t set_party_mode(enum pm_cmd cmd) {
 }
 
 esp_err_t led_controller_show_volume(int player_volume) {
-	uint8_t msg[] = { PMC_SET_VOLUME, player_volume };
+	uint8_t msg[] = { SC_SET_VOLUME, player_volume };
 	return send_command(msg, ARRAY_SIZE(msg));
 }

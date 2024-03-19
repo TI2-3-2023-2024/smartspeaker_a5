@@ -8,11 +8,9 @@
 // NOTE: make sure the led_controller and smartspeaker project have the same
 // enum configuration
 enum pm_cmd {
-	PMC_OFF = 0,
-	PMC_SET_VOLUME,
-	PMC_RAINBOW_FLASH,
-	PMC_RAINBOW_SMOOTH,
-	PMC_RAINBOW_TRAIL,
+	SC_OFF = 0,
+	SC_SET_VOLUME,
+	SC_RAINBOW_FLASH,
 };
 
 /**

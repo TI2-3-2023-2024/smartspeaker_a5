@@ -232,8 +232,8 @@ static void handle_ui_input(audio_event_iface_msg_t *msg) {
 			case UIC_CHANNEL_DOWN:
 				if (speaker_state_index == SPEAKER_STATE_RADIO) channel_down();
 				break;
-			case UIC_PARTY_MODE_ON: set_party_mode(PMC_RAINBOW_FLASH); break;
-			case UIC_PARTY_MODE_OFF: set_party_mode(PMC_OFF); break;
+			case UIC_PARTY_MODE_ON: set_party_mode(SC_RAINBOW_FLASH); break;
+			case UIC_PARTY_MODE_OFF: set_party_mode(SC_OFF); break;
 			case UIC_ASK_CLOCK_TIME:
 				// struct timeval tv;
 				// int ret = gettimeofday(&tv, NULL);

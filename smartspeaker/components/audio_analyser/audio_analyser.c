@@ -62,7 +62,7 @@ static void detect_freq(int target_freq, float magnitude) {
 		    "Detection at frequency %d Hz (magnitude %.2f, log magnitude %.2f)",
 		    target_freq, magnitude, logMagnitude);
 #ifdef CONFIG_LED_CONTROLLER_ENABLED
-		set_party_mode(PMC_RAINBOW_FLASH);
+		set_party_mode(SC_RAINBOW_FLASH);
 #endif
 	}
 }

@@ -85,7 +85,7 @@ void app_main(void) {
 
 		struct queue_msg msg = {
 			.cmd    = buffer[0],
-			.volume = buffer[0] == PMC_SET_VOLUME ? buffer[1] : 0,
+			.volume = buffer[0] == SC_SET_VOLUME ? buffer[1] : 0,
 		};
 		xQueueSend(queue, &msg, portMAX_DELAY);
 	}

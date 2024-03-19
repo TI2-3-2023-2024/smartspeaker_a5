@@ -109,17 +109,13 @@ int rb_flash_eff() {
 	return 1000;
 }
 
-// void rb_smooth_eff() {}
-//
-// void rb_trail_eff() {}
-
 void strip_effects_init(void *params) {
 	struct strip_fx_params *p = (struct strip_fx_params *)params;
 	effect_queue              = p->queue;
 	strip                     = p->strip;
 	int wait                  = portMAX_DELAY;
-	enum pm_cmd cmd           = PMC_OFF;
-	enum pm_cmd prev_cmd      = PMC_OFF;
+	enum strip_cmd cmd        = SC_OFF;
+	enum strip_cmd prev_cmd   = SC_OFF;
 	uint8_t volume            = 50;
 	clear_strip();
 
@@ -132,14 +128,14 @@ void strip_effects_init(void *params) {
 
 			// Sets prev_cmd to be the party mode command before the volume
 			// change command was sent.
-			if (cmd != PMC_SET_VOLUME) { prev_cmd = cmd; }
+			if (cmd != SC_SET_VOLUME) { prev_cmd = cmd; }
 
 			cmd    = msg.cmd;
 			volume = msg.volume;
-		} else if (cmd == PMC_SET_VOLUME) {
+		} else if (cmd == SC_SET_VOLUME) {
 			// If a message was NOT recieved before the next cycle of the
 			// currently active effect could take place, AND cmd from the
-			// previous while iteration was set to PMC_SET_VOLUME, that means
+			// previous while iteration was set to SC_SET_VOLUME, that means
 			// that the volume effect has stopped and should now switch back to
 			// the party mode command before the volume change command was sent.
 			cmd = prev_cmd;
@@ -148,16 +144,13 @@ void strip_effects_init(void *params) {
 		ESP_LOGI(TAG, "Party mode command: %u; Volume: %u", cmd, volume);
 
 		switch (cmd) {
-			case PMC_OFF:
+			case SC_OFF:
 				clear_strip();
 				wait = portMAX_DELAY;
 				break;
-			case PMC_SET_VOLUME: wait = vol_show(volume); break;
-			case PMC_RAINBOW_FLASH: wait = rb_flash_eff(); break;
-			default:
-				break;
-				// case PMC_RAINBOW_SMOOTH: rb_smooth_eff(); break;
-				// case PMC_RAINBOW_TRAIL: rb_trail_eff(); break;
+			case SC_SET_VOLUME: wait = vol_show(volume); break;
+			case SC_RAINBOW_FLASH: wait = rb_flash_eff(); break;
+			default: break;
 		}
 	}
 }

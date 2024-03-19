@@ -11,12 +11,10 @@
  * NOTE: make sure the led_controller and smartspeaker project have the same
  * enum configuration
  */
-enum pm_cmd {
-	PMC_OFF = 0,
-	PMC_SET_VOLUME,
-	PMC_RAINBOW_FLASH,
-	PMC_RAINBOW_SMOOTH,
-	PMC_RAINBOW_TRAIL,
+enum strip_cmd {
+	SC_OFF = 0,
+	SC_SET_VOLUME,
+	SC_RAINBOW_FLASH,
 };
 
 /*
@@ -31,7 +29,7 @@ struct strip_fx_params {
  * Arguments that are passed through the queue shared by main and strip_effects
  */
 struct queue_msg {
-	enum pm_cmd cmd;
+	enum strip_cmd cmd;
 	int volume;
 };
 
