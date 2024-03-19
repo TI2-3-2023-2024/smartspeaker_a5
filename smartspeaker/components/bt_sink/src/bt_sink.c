@@ -19,6 +19,11 @@
 #include "periph_button.h"
 #include "periph_touch.h"
 #include <string.h>
+#include "sd_play.h"
+#include "utils/macro.h"
+#include "lcd.h"
+
+#define SEND_UI_CMD(command) SEND_CMD(6969, 6969, command, evt)
 
 static const char *TAG = "BT_SINK";
 
@@ -143,6 +148,10 @@ esp_err_t bt_sink_deinit(audio_element_handle_t *elems, size_t count,
 	audio_event_iface_remove_listener(
 	    esp_periph_set_get_event_iface(periph_set), evt);
 
+
+	vTaskDelete(xBlinkLedTask);
+	gpio_set_level(22, 0);
+
 	return ESP_OK;
 }
 
@@ -171,8 +180,10 @@ esp_err_t bt_sink_run(audio_event_iface_msg_t *msg, void *args) {
 		if (msg->cmd == PERIPH_BLUETOOTH_CONNECTED) {
 			ESP_LOGI(TAG, "Bluetooth connected");
 			vTaskDelete(xBlinkLedTask);
+			gpio_set_level(22, 1);
 		} else if (msg->cmd == PERIPH_BLUETOOTH_DISCONNECTED) {
 			ESP_LOGW(TAG, "[ * ] Bluetooth disconnected");
+			xTaskCreate(blinkLED, "BT_BLINK", 512, NULL, 5, &xBlinkLedTask);
 		}
 	}
 	/* Stop when the last pipeline element (i2s_stream_writer in this case)

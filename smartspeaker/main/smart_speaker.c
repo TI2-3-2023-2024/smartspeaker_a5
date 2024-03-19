@@ -60,6 +60,10 @@ struct state speaker_states[SPEAKER_STATE_MAX] = {
 	  .run       = sd_play_run,
 	  .exit      = sd_play_deinit,
 	  .can_enter = NULL }, /* CLOCK */
+	{ .enter     = sd_play_init,
+	  .run       = sd_play_run_bt,
+	  .exit      = sd_play_deinit,
+	  .can_enter = NULL } /* BT_PAIRING */
 };
 enum speaker_state speaker_state_index     = SPEAKER_STATE_NONE;
 enum speaker_state speaker_state_index_old = SPEAKER_STATE_NONE;
@@ -228,7 +232,7 @@ static void handle_ui_input(audio_event_iface_msg_t *msg) {
 		switch (ui_command) {
 			case UIC_SWITCH_OUTPUT:
 				if (speaker_state_index == SPEAKER_STATE_RADIO)
-					switch_state(SPEAKER_STATE_BLUETOOTH, NULL);
+					switch_state(SPEAKER_STATE_BT_PAIRING, NULL);
 				else switch_state(SPEAKER_STATE_RADIO, NULL);
 				break;
 			case UIC_VOLUME_UP: set_volume(player_volume + 10); break;
@@ -262,10 +266,18 @@ static void handle_ui_input(audio_event_iface_msg_t *msg) {
 
 				// ESP_ERROR_CHECK(init_radio(NULL, 0, evt));
 				break;
+			case BT_PAIRING:
+				// switch_state(SPEAKER_STATE_CLOCK, NULL);
+				// play_audio_through_string("/sdcard/bt_status/pairing_mode");
+				// switch_state(SPEAKER_STATE_BLUETOOTH, NULL);
+				break;
 		}
 	} else if (msg->cmd == 6970 && msg->source_type == 6970 &&
 	           (int)msg->data == SDC_CLOCK_DONE) {
 		switch_state(speaker_state_index_old, NULL);
+	} else if (msg->cmd == 6970 && msg->source_type == 6970 &&
+	           (int)msg->data == SDC_BT_DONE) {
+		switch_state(SPEAKER_STATE_BLUETOOTH, NULL);
 	}
 }
 
@@ -278,9 +290,8 @@ void app_main() {
 
 	set_volume(50);
 
-	// wifi_wait(portMAX_DELAY);
-	switch_state(SPEAKER_STATE_BLUETOOTH, NULL);
-	/* radio_init(NULL, 0, evt, periph_set, NULL); */
+	wifi_wait(portMAX_DELAY);
+	switch_state(SPEAKER_STATE_RADIO, NULL);
 
 	/* Main eventloop */
 	ESP_LOGI(TAG, "Entering main eventloop");
@@ -291,8 +302,6 @@ void app_main() {
 
 		ESP_LOGI(TAG, "Received event with cmd: %d, source_type %d and data %p",
 		         msg.cmd, msg.source_type, msg.data);
-		
-		
 
 		handle_ui_input(&msg);
 		handle_touch_input(&msg);

@@ -25,6 +25,7 @@ enum sd_play_state {
 	SD_PLAY_PLAYING_CU,
 	SD_PLAY_PLAYING_HOUR,
 	SD_PLAY_PLAYING_MIN,
+	SD_PLAY_PLAYING_BT,
 };
 enum sd_play_state cur_play_state = SD_PLAY_PLAYING_NONE;
 
@@ -88,6 +89,23 @@ esp_err_t sd_play_run(audio_event_iface_msg_t *msg, void *args) {
 		language = (int)((struct ui_cmd_data *)msg->data)->data;
 	}
 
+	if (msg->source_type == AUDIO_ELEMENT_TYPE_ELEMENT &&
+	    msg->source == (void *)mp3_decoder &&
+	    msg->cmd == AEL_MSG_CMD_REPORT_MUSIC_INFO) {
+		audio_element_info_t music_info = { 0 };
+		audio_element_getinfo(mp3_decoder, &music_info);
+
+		ESP_LOGI(TAG,
+		         "[ * ] Receive music info from SD Card, "
+		         "sample_rates=%d, bits=%d, ch=%d",
+		         music_info.sample_rates, music_info.bits, music_info.channels);
+
+		audio_element_set_music_info(i2s_stream_writer, music_info.sample_rates,
+		                             music_info.channels, music_info.bits);
+		i2s_stream_set_clk(i2s_stream_writer, music_info.sample_rates,
+		                   music_info.bits, music_info.channels);
+	}
+
 	if (cur_play_state == SD_PLAY_PLAYING_NONE) {
 		cur_play_state = SD_PLAY_PLAYING_CU;
 		snprintf(buf, 50, "/sdcard/%d/cu.mp3", language);
@@ -113,6 +131,42 @@ esp_err_t sd_play_run(audio_event_iface_msg_t *msg, void *args) {
 				break;
 			default: break;
 		}
+	}
+
+	return ESP_OK;
+}
+
+esp_err_t sd_play_run_bt(audio_event_iface_msg_t *msg, void *args) {
+	if (!is_sd_init) return ESP_FAIL;
+
+	bool playback_finished = (msg->source_type == AUDIO_ELEMENT_TYPE_ELEMENT &&
+	                          msg->source == (void *)i2s_stream_writer &&
+	                          msg->cmd == AEL_MSG_CMD_REPORT_STATUS &&
+	                          (((int)msg->data == AEL_STATUS_STATE_STOPPED) ||
+	                           ((int)msg->data == AEL_STATUS_STATE_FINISHED)));
+
+	if (msg->source_type == AUDIO_ELEMENT_TYPE_ELEMENT &&
+	    msg->source == (void *)mp3_decoder &&
+	    msg->cmd == AEL_MSG_CMD_REPORT_MUSIC_INFO) {
+		audio_element_info_t music_info = { 0 };
+		audio_element_getinfo(mp3_decoder, &music_info);
+
+		ESP_LOGI(TAG,
+		         "[ * ] Receive music info from SD Card, "
+		         "sample_rates=%d, bits=%d, ch=%d",
+		         music_info.sample_rates, music_info.bits, music_info.channels);
+
+		audio_element_set_music_info(i2s_stream_writer, music_info.sample_rates,
+		                             music_info.channels, music_info.bits);
+		i2s_stream_set_clk(i2s_stream_writer, music_info.sample_rates,
+		                   music_info.bits, music_info.channels);
+	}
+	if (cur_play_state == SD_PLAY_PLAYING_NONE) {
+		cur_play_state = SD_PLAY_PLAYING_BT;
+		sd_play_play_file("/sdcard/bt/1.mp3");
+	} else if (playback_finished) {
+		cur_play_state = SD_PLAY_PLAYING_NONE;
+		SEND_SD_CMD(SDC_BT_DONE);
 	}
 
 	return ESP_OK;
