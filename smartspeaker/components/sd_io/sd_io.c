@@ -10,7 +10,7 @@
 #include "sd_io.h"
 
 #define MOUNT_POINT "/sdcard"
-static const char mount_point[] = MOUNT_POINT;
+#define FILE_PATH   "/sdcard/opt/opts.txt"
 
 static sdmmc_card_t *sd_card;
 
@@ -27,7 +27,7 @@ esp_err_t sd_io_init(void) {
 	sdmmc_slot_config_t slot_cfg = SDMMC_SLOT_CONFIG_DEFAULT();
 	slot_cfg.width               = 1;
 	slot_cfg.flags              |= SDMMC_SLOT_FLAG_INTERNAL_PULLUP;
-	ESP_RETURN_ON_ERROR(esp_vfs_fat_sdmmc_mount(mount_point, &host, &slot_cfg,
+	ESP_RETURN_ON_ERROR(esp_vfs_fat_sdmmc_mount(MOUNT_POINT, &host, &slot_cfg,
 	                                            &mount_cfg, &sd_card),
 	                    TAG, "Failed to initialize SD card I/O");
 	sdmmc_card_print_info(stdout, sd_card);
@@ -36,7 +36,7 @@ esp_err_t sd_io_init(void) {
 }
 
 esp_err_t sd_io_deinit(void) {
-	return esp_vfs_fat_sdcard_unmount(mount_point, sd_card);
+	return esp_vfs_fat_sdcard_unmount(MOUNT_POINT, sd_card);
 }
 
 esp_err_t sd_io_save_opts(struct sd_io_startup_opts opts) {
@@ -52,17 +52,20 @@ esp_err_t sd_io_save_opts(struct sd_io_startup_opts opts) {
 	ESP_LOGI(TAG, "Writing options file");
 	FILE *file_write = fopen(opts_file_path, "w");
 	if (file_write == NULL) {
-		perror("fopen");
 		ESP_LOGE(TAG, "Failed to open file at %s for writing", opts_file_path);
 		return ESP_FAIL;
 	}
 	fprintf(file_write, opts_str, sd_card->cid.name);
 	fclose(file_write);
 
+	return ESP_OK;
+}
+
+esp_err_t sd_io_load_opts(struct sd_io_startup_opts *opts) {
 	ESP_LOGI(TAG, "Reading options file");
-	FILE *file_read = fopen(opts_file_path, "r");
+	FILE *file_read = fopen(FILE_PATH, "r");
 	if (file_read == NULL) {
-		ESP_LOGE(TAG, "Failed to open file at %s for reading", opts_file_path);
+		ESP_LOGE(TAG, "Failed to open file at %s for reading", FILE_PATH);
 		return ESP_FAIL;
 	}
 	char loaded_opts_str[20];
@@ -73,10 +76,26 @@ esp_err_t sd_io_save_opts(struct sd_io_startup_opts opts) {
 	if (pos) {
 		*pos = '\0';
 	} else {
-		ESP_LOGE(TAG, "Failed to find newline at end of options file");
+		ESP_LOGE(TAG, "Failed to find newline at end of options file. Make "
+		              "sure it has \\n.");
 		return ESP_FAIL;
 	}
-	ESP_LOGI(TAG, "Result startup options: %s", loaded_opts_str);
+
+	char *token = strtok(loaded_opts_str, ",");
+	int numbers[3];
+	int i = 0;
+
+	while (token != NULL) {
+		numbers[i++] = atoi(token);
+		token        = strtok(NULL, ",");
+	}
+
+	struct sd_io_startup_opts options = {
+		.state      = numbers[0],
+		.volume     = numbers[1],
+		.party_mode = numbers[2],
+	};
+	*opts = options;
 
 	return ESP_OK;
 }

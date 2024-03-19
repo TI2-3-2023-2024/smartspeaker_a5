@@ -47,6 +47,7 @@ static esp_periph_set_handle_t periph_set;
 static audio_event_iface_handle_t evt;
 
 static int player_volume;
+static bool set_opts_on_tone_detect = true;
 
 struct state speaker_states[SPEAKER_STATE_MAX] = {
 	{ .enter     = radio_init,
@@ -124,14 +125,6 @@ static void app_init(void) {
 
 	wifi_wait(portMAX_DELAY);
 
-	ESP_LOGI(TAG, "Testing SD IO");
-	struct sd_io_startup_opts opts = { .state      = SPEAKER_STATE_CLOCK,
-		                               .volume     = 69,
-		                               .party_mode = true };
-	sd_io_init();
-	sd_io_save_opts(opts);
-	sd_io_deinit();
-
 	/* Initialise SNTP*/
 	ESP_LOGI(TAG, "Initialise NTP");
 	sntp_mod_init();
@@ -140,7 +133,7 @@ static void app_init(void) {
 	wi_init(evt);
 
 	ESP_LOGI(TAG, "Initialise audio analyser");
-	audio_analyser_init();
+	audio_analyser_init(evt);
 
 #ifdef CONFIG_LCD_ENABLED
 	xTaskCreate(&lcd1602_task, "lcd1602_task", 3000, evt, 5, NULL);
@@ -240,7 +233,7 @@ static void handle_ui_input(audio_event_iface_msg_t *msg) {
 
 		switch (ui_command) {
 			case UIC_SWITCH_OUTPUT:
-
+				if (set_opts_on_tone_detect) set_opts_on_tone_detect = false;
 				if (speaker_state_index == SPEAKER_STATE_RADIO) {
 					if (bt_connected == 0) {
 						switch_state(SPEAKER_STATE_BT_PAIRING, NULL);
@@ -290,6 +283,31 @@ static void handle_ui_input(audio_event_iface_msg_t *msg) {
 	}
 }
 
+void handle_detect_input(audio_event_iface_msg_t *msg) {
+	if (!set_opts_on_tone_detect || msg->cmd != 8000 ||
+	    msg->source_type != 8000)
+		return;
+
+	ESP_LOGI(TAG, "Detect event received");
+
+	struct sd_io_startup_opts opts;
+	sd_io_init();
+	if (sd_io_load_opts(&opts) == ESP_OK) {
+		ESP_LOGI(TAG, "Received opts state: %d, volume: %d, party_mode: %d",
+		         opts.state, opts.volume, opts.party_mode);
+		switch_state(opts.state, NULL);
+		set_volume(opts.volume);
+		// TODO: impl partymode load
+	} else {
+		ESP_LOGW(TAG, "No valid configuration found, setting default opts "
+		              "state: radio, volume: 50, party_mode: false");
+		switch_state(SPEAKER_STATE_RADIO, NULL);
+		set_volume(50);
+		// TODO: impl partymode load
+	}
+	sd_io_deinit();
+}
+
 void app_main() {
 	/* ESP_GOTO_ON_ERROR stores the return value here. */
 	UNUSED esp_err_t ret;
@@ -314,6 +332,7 @@ void app_main() {
 
 		handle_ui_input(&msg);
 		handle_touch_input(&msg);
+		handle_detect_input(&msg);
 
 		struct state *current_state = speaker_states + speaker_state_index;
 		if (current_state->run && current_state->run(&msg, NULL) != ESP_OK)

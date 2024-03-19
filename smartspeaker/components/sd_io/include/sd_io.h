@@ -17,4 +17,6 @@ esp_err_t sd_io_deinit(void);
 
 esp_err_t sd_io_save_opts(struct sd_io_startup_opts opts);
 
+esp_err_t sd_io_load_opts(struct sd_io_startup_opts *opts);
+
 #endif

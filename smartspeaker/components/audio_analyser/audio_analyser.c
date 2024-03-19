@@ -2,6 +2,7 @@
 #include <stdio.h>
 
 /* goertzel */
+#include "audio_event_iface.h"
 #include "filter_resample.h"
 #include "goertzel_filter.h"
 #include <math.h>
@@ -20,6 +21,8 @@
 
 #include "led_controller_commands.h"
 #include "utils/macro.h"
+
+#define SEND_DETECT_CMD(command) SEND_CMD(8000, 8000, command, detect_evt)
 
 #define GOERTZEL_NR_FREQS                                                      \
 	((sizeof GOERTZEL_DETECT_FREQS) / (sizeof GOERTZEL_DETECT_FREQS[0]))
@@ -49,6 +52,10 @@ static audio_element_handle_t resample_filter;
 static audio_element_handle_t raw_reader;
 static audio_pipeline_handle_t pipeline;
 
+static audio_event_iface_handle_t detect_evt;
+static audio_event_iface_handle_t source_evt;
+static bool set_opts_on_tone_detect = true;
+
 /**
  * Determine if a frequency was detected or not, based on the magnitude that the
  * Goertzel filter calculated
@@ -61,6 +68,12 @@ static void detect_freq(int target_freq, float magnitude) {
 		    TAG,
 		    "Detection at frequency %d Hz (magnitude %.2f, log magnitude %.2f)",
 		    target_freq, magnitude, logMagnitude);
+
+		if (set_opts_on_tone_detect) {
+			SEND_DETECT_CMD(0);
+			set_opts_on_tone_detect = false;
+		}
+
 #ifdef CONFIG_LED_CONTROLLER_ENABLED
 		set_party_mode(SC_RAINBOW_FLASH);
 #endif
@@ -125,7 +138,7 @@ exit:
 	return;
 }
 
-void audio_analyser_init(void) {
+void audio_analyser_init(audio_event_iface_handle_t evt_param) {
 	/* Init i2s stream reader */
 	ESP_LOGI(TAG, "Create i2s stream to read data from codec chip");
 	i2s_stream_cfg_t i2s_cfg_reader = I2S_STREAM_CFG_DEFAULT();
@@ -151,4 +164,15 @@ void audio_analyser_init(void) {
 	/* Init audio pipeline */
 	audio_pipeline_cfg_t pipeline_cfg = DEFAULT_AUDIO_PIPELINE_CONFIG();
 	pipeline                          = audio_pipeline_init(&pipeline_cfg);
+
+	/* Init audio event */
+	audio_event_iface_cfg_t evt_cfg = AUDIO_EVENT_IFACE_DEFAULT_CFG();
+	evt_cfg.queue_set_size          = 20;
+	evt_cfg.external_queue_size     = 20;
+	evt_cfg.internal_queue_size     = 20;
+	detect_evt                      = audio_event_iface_init(&evt_cfg);
+
+	source_evt = evt_param;
+
+	audio_event_iface_set_listener(detect_evt, source_evt);
 }
