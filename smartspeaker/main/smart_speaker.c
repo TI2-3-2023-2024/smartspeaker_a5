@@ -109,6 +109,10 @@ static void app_init(void) {
 	ESP_LOGI(TAG, "Add keys to event listener");
 	audio_event_iface_set_listener(esp_periph_set_get_event_iface(periph_set),
 	                               evt);
+
+	ESP_LOGI(TAG, "Initialise Bluetooth service");
+	bt_sink_pre_init();
+
 	/* Initialise WI-Fi component */
 	ESP_LOGI(TAG, "Initialise WI-FI");
 	wifi_init();
@@ -135,6 +139,9 @@ static void app_init(void) {
 }
 
 static void app_free(void) {
+	ESP_LOGI(TAG, "Deinitialise Bluetooth service");
+	bt_sink_post_deinit();
+
 	ESP_LOGI(TAG, "Remove keys from event listener");
 	audio_event_iface_remove_listener(
 	    esp_periph_set_get_event_iface(periph_set), evt);

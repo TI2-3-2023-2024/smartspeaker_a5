@@ -42,9 +42,9 @@ static audio_pipeline_handle_t pipeline;
 static audio_element_handle_t bt_stream_reader;
 static audio_element_handle_t output_stream_writer;
 
-esp_err_t bt_sink_init(audio_element_handle_t *elems, size_t count,
-                  audio_event_iface_handle_t evt,
-                  esp_periph_set_handle_t periph_set, void *args) {
+esp_err_t bt_sink_pre_init(void) {
+	/* This needs to be in it's own init/deinit function since it should only be
+	 * called once. */
 	ESP_LOGI(TAG, "Create Bluetooth service");
 	bluetooth_service_cfg_t bt_cfg = {
 		.device_name                   = CONFIG_BT_SINK_DEVICE_NAME,
@@ -54,6 +54,20 @@ esp_err_t bt_sink_init(audio_element_handle_t *elems, size_t count,
 	ESP_RETURN_ON_ERROR(bluetooth_service_start(&bt_cfg), TAG,
 	                    "Bluetooth service start failed");
 
+	return ESP_OK;
+}
+
+esp_err_t bt_sink_post_deinit(void) {
+	ESP_LOGI(TAG, "Stop Bluetooth service");
+	ESP_RETURN_ON_ERROR(bluetooth_service_destroy(), TAG,
+	                    "Bluetooth service destroy failed");
+
+	return ESP_OK;
+}
+
+esp_err_t bt_sink_init(audio_element_handle_t *elems, size_t count,
+                       audio_event_iface_handle_t evt,
+                       esp_periph_set_handle_t periph_set, void *args) {
 	ESP_LOGI(TAG, "Create Bluetooth peripheral");
 	bt_periph = bluetooth_service_create_periph();
 
@@ -90,9 +104,8 @@ esp_err_t bt_sink_init(audio_element_handle_t *elems, size_t count,
 }
 
 esp_err_t bt_sink_deinit(audio_element_handle_t *elems, size_t count,
-                    audio_event_iface_handle_t evt,
-                    esp_periph_set_handle_t periph_set, void *args) {
-
+                         audio_event_iface_handle_t evt,
+                         esp_periph_set_handle_t periph_set, void *args) {
 	ESP_LOGI(TAG, "Stop audio_pipeline");
 	audio_pipeline_stop(pipeline);
 	audio_pipeline_wait_for_stop(pipeline);
@@ -113,10 +126,6 @@ esp_err_t bt_sink_deinit(audio_element_handle_t *elems, size_t count,
 	audio_pipeline_deinit(pipeline);
 	audio_element_deinit(bt_stream_reader);
 	audio_element_deinit(output_stream_writer);
-
-	ESP_LOGI(TAG, "Stop Bluetooth service");
-	ESP_RETURN_ON_ERROR(bluetooth_service_destroy(), TAG,
-	                    "Bluetooth service destroy failed");
 
 	return ESP_OK;
 }

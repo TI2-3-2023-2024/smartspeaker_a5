@@ -9,13 +9,20 @@
 /* TODO: fix documentation */
 
 /**
+ * @brief Initialise Bluetooth service, should only be called once.
+ */
+esp_err_t bt_sink_pre_init(void);
+
+esp_err_t bt_sink_post_deinit(void);
+
+/**
  * @brief Initialise Bluetooth sink component.
  *
  * @param periph_set peripheral set to add Bluetooth service to
  */
 esp_err_t bt_sink_init(audio_element_handle_t *elems, size_t count,
-                  audio_event_iface_handle_t evt,
-                  esp_periph_set_handle_t periph_set, void *args);
+                       audio_event_iface_handle_t evt,
+                       esp_periph_set_handle_t periph_set, void *args);
 
 /**
  * @brief Destroy Bluetooth sink component.
@@ -23,8 +30,8 @@ esp_err_t bt_sink_init(audio_element_handle_t *elems, size_t count,
  * @param periph_set peripheral set to remove Bluetooth service from
  */
 esp_err_t bt_sink_deinit(audio_element_handle_t *elems, size_t count,
-                    audio_event_iface_handle_t evt,
-                    esp_periph_set_handle_t periph_set, void *args);
+                         audio_event_iface_handle_t evt,
+                         esp_periph_set_handle_t periph_set, void *args);
 
 /**
  * @brief Event handler to call with message from audio_event_iface
