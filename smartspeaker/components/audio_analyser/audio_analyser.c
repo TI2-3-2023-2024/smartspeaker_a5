@@ -122,7 +122,7 @@ void tone_detection_task(void *args) {
 	audio_pipeline_run(pipeline);
 
 	while (1) {
-		vTaskDelay(pdMS_TO_TICKS(500));
+		vTaskDelay(pdMS_TO_TICKS(1000));
 
 		xSemaphoreTake(semphr, portMAX_DELAY);
 
@@ -182,9 +182,7 @@ void audio_analyser_init(audio_event_iface_handle_t evt_param) {
 	evt_cfg.external_queue_size     = 20;
 	evt_cfg.internal_queue_size     = 20;
 	detect_evt                      = audio_event_iface_init(&evt_cfg);
-
-	source_evt = evt_param;
-
+	source_evt                      = evt_param;
 	audio_event_iface_set_listener(detect_evt, source_evt);
 }
 
@@ -204,6 +202,7 @@ void audio_analyser_deinit(TaskHandle_t *task) {
 
 	ESP_ERROR_CHECK(audio_element_deinit(raw_reader));
 	ESP_ERROR_CHECK(audio_element_deinit(resample_filter));
-	ESP_ERROR_CHECK(audio_element_deinit(i2s_stream_reader));
+	// FIXME: should be deinitialized, but causes a crash
+	// audio_element_deinit(i2s_stream_reader);
 	vTaskDelete(*task);
 }

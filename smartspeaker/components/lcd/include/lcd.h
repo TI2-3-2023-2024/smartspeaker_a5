@@ -11,6 +11,7 @@ enum ui_cmd {
 	UIC_PARTY_MODE_ON,
 	UIC_PARTY_MODE_OFF,
 	UIC_ASK_CLOCK_TIME,
+	UIC_SET_STARTUP_OPTS,
 };
 
 struct ui_cmd_data {

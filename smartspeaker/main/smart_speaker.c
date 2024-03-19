@@ -274,6 +274,14 @@ static void handle_ui_input(audio_event_iface_msg_t *msg) {
 
 				// ESP_ERROR_CHECK(init_radio(NULL, 0, evt));
 				break;
+			case UIC_SET_STARTUP_OPTS:
+				sd_io_init();
+				// TODO: impl party mode in feature
+				if (sd_io_save_opts((struct sd_io_startup_opts){
+				        speaker_state_index, player_volume, false }) == ESP_OK)
+					ESP_LOGI(TAG,
+					         "Saved startup options to SD card successfully");
+				sd_io_deinit();
 		}
 	} else if (msg->cmd == 6970 && msg->source_type == 6970 &&
 	           (int)msg->data == SDC_CLOCK_DONE) {
@@ -307,7 +315,7 @@ void handle_detect_input(audio_event_iface_msg_t *msg) {
 		// TODO: impl partymode load
 	}
 	sd_io_deinit();
-	/* audio_analyser_deinit(&detect_task); */
+	audio_analyser_deinit(&detect_task);
 }
 
 void app_main() {

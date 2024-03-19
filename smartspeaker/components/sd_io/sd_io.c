@@ -4,6 +4,7 @@
 #include "esp_log.h"
 #include "esp_vfs_fat.h"
 #include "sdmmc_cmd.h"
+#include <stdio.h>
 #include <string.h>
 #include <sys/stat.h>
 
@@ -40,7 +41,6 @@ esp_err_t sd_io_deinit(void) {
 }
 
 esp_err_t sd_io_save_opts(struct sd_io_startup_opts opts) {
-	const char *opts_file_path = MOUNT_POINT "/startup_opts.txt";
 	char opts_str[20];
 
 	if (sprintf(opts_str, "%d,%d,%d\n", opts.state, opts.volume,
@@ -50,9 +50,9 @@ esp_err_t sd_io_save_opts(struct sd_io_startup_opts opts) {
 	}
 
 	ESP_LOGI(TAG, "Writing options file");
-	FILE *file_write = fopen(opts_file_path, "w");
+	FILE *file_write = fopen(FILE_PATH, "w");
 	if (file_write == NULL) {
-		ESP_LOGE(TAG, "Failed to open file at %s for writing", opts_file_path);
+		ESP_LOGE(TAG, "Failed to open file at %s for writing", FILE_PATH);
 		return ESP_FAIL;
 	}
 	fprintf(file_write, opts_str, sd_card->cid.name);

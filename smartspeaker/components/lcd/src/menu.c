@@ -136,6 +136,12 @@ static void change_language_french(void *args) {
 	ESP_LOGI(TAG, "%d", current_language);
 }
 
+static void setStartupOpts(void *args) {
+	ESP_LOGI(TAG, "set startup opts");
+
+	SEND_UI_CMD(UIC_SET_STARTUP_OPTS);
+}
+
 static void screen_draw_menu(struct screen *screen, int redraw);
 static void screen_event_handler_menu(struct screen *screen, enum button_id);
 static void screen_draw_welcome(struct screen *screen, int redraw);
@@ -232,6 +238,9 @@ static struct menu_item menu_main_items[] = {
 	{ .type      = MENU_TYPE_MENU,
 	  .name      = "Bluetooth",
 	  .data.menu = &menu_bluetooth },
+	{ .type          = MENU_TYPE_FUNCTION,
+	  .name          = "Set startup opts",
+	  .data.function = setStartupOpts },
 };
 
 static struct menu menu_main = {
