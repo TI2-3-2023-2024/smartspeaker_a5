@@ -168,10 +168,9 @@ static struct menu_item menu_languages_items[] = {
 	  .name          = "Deutsch",
 	  .data.function = change_language_german },
 	{ .type          = MENU_TYPE_FUNCTION,
-	  .name          = "français",
+	  .name          = "Francais",
 	  .data.function = change_language_french },
 	{ .type = MENU_TYPE_MENU, .name = "Back", .data.menu = &menu_clock },
-
 };
 
 static struct menu_item menu_radio_items[] = {
