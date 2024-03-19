@@ -48,6 +48,7 @@ static audio_event_iface_handle_t evt;
 
 static int player_volume;
 static bool set_opts_on_tone_detect = true;
+static TaskHandle_t detect_task     = NULL;
 
 struct state speaker_states[SPEAKER_STATE_MAX] = {
 	{ .enter     = radio_init,
@@ -141,7 +142,7 @@ static void app_init(void) {
 
 	// Starts audio analyser task
 	xTaskCreate(tone_detection_task, "tone_detection_task", 3000, NULL, 5,
-	            NULL);
+	            &detect_task);
 }
 
 static void app_free(void) {
@@ -306,6 +307,7 @@ void handle_detect_input(audio_event_iface_msg_t *msg) {
 		// TODO: impl partymode load
 	}
 	sd_io_deinit();
+	/* audio_analyser_deinit(&detect_task); */
 }
 
 void app_main() {

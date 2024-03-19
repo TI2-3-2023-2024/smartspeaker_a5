@@ -4,6 +4,7 @@
 /* goertzel */
 #include "audio_event_iface.h"
 #include "filter_resample.h"
+#include "freertos/portmacro.h"
 #include "goertzel_filter.h"
 #include <math.h>
 
@@ -18,6 +19,8 @@
 #include "esp_check.h"
 #include "esp_err.h"
 #include "esp_log.h"
+
+#include "freertos/semphr.h"
 
 #include "led_controller_commands.h"
 #include "utils/macro.h"
@@ -47,6 +50,7 @@ static const int GOERTZEL_DETECT_FREQS[] = { 880 };
 
 static const char *TAG = "AUDIO_ANALYSER";
 
+static SemaphoreHandle_t semphr;
 static audio_element_handle_t i2s_stream_reader;
 static audio_element_handle_t resample_filter;
 static audio_element_handle_t raw_reader;
@@ -119,6 +123,9 @@ void tone_detection_task(void *args) {
 
 	while (1) {
 		vTaskDelay(pdMS_TO_TICKS(500));
+
+		xSemaphoreTake(semphr, portMAX_DELAY);
+
 		raw_stream_read(i2s_stream_reader, (char *)raw_buffer,
 		                sizeof *raw_buffer * GOERTZEL_BUFFER_LENGTH);
 
@@ -133,12 +140,16 @@ void tone_detection_task(void *args) {
 				detect_freq(filters_cfg[f].target_freq, magnitude);
 			}
 		}
+
+		xSemaphoreGive(semphr);
 	}
 exit:
 	return;
 }
 
 void audio_analyser_init(audio_event_iface_handle_t evt_param) {
+	semphr = xSemaphoreCreateMutex();
+
 	/* Init i2s stream reader */
 	ESP_LOGI(TAG, "Create i2s stream to read data from codec chip");
 	i2s_stream_cfg_t i2s_cfg_reader = I2S_STREAM_CFG_DEFAULT();
@@ -175,4 +186,24 @@ void audio_analyser_init(audio_event_iface_handle_t evt_param) {
 	source_evt = evt_param;
 
 	audio_event_iface_set_listener(detect_evt, source_evt);
+}
+
+void audio_analyser_deinit(TaskHandle_t *task) {
+	xSemaphoreTake(semphr, portMAX_DELAY);
+
+	ESP_ERROR_CHECK(audio_event_iface_remove_listener(source_evt, detect_evt));
+
+	ESP_ERROR_CHECK(audio_pipeline_stop(pipeline));
+	ESP_ERROR_CHECK(audio_pipeline_wait_for_stop(pipeline));
+	ESP_ERROR_CHECK(audio_pipeline_terminate(pipeline));
+
+	ESP_ERROR_CHECK(audio_pipeline_unregister(pipeline, raw_reader));
+	ESP_ERROR_CHECK(audio_pipeline_unregister(pipeline, i2s_stream_reader));
+	ESP_ERROR_CHECK(audio_pipeline_unregister(pipeline, resample_filter));
+	ESP_ERROR_CHECK(audio_pipeline_deinit(pipeline));
+
+	ESP_ERROR_CHECK(audio_element_deinit(raw_reader));
+	ESP_ERROR_CHECK(audio_element_deinit(resample_filter));
+	ESP_ERROR_CHECK(audio_element_deinit(i2s_stream_reader));
+	vTaskDelete(*task);
 }
