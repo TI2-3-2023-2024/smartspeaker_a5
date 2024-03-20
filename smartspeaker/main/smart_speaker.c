@@ -327,8 +327,9 @@ void app_main() {
 
 	set_volume(50);
 
-	wifi_wait(portMAX_DELAY);
-	switch_state(SPEAKER_STATE_RADIO, NULL);
+	/* Cannot start this because the tone detection task is still running. */
+	// wifi_wait(portMAX_DELAY);
+	// switch_state(SPEAKER_STATE_RADIO, NULL);
 
 	/* Main eventloop */
 	ESP_LOGI(TAG, "Entering main eventloop");
