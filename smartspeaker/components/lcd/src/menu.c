@@ -336,7 +336,7 @@ static void screen_draw_welcome(struct screen *screen, int redraw) {
 
 	lcd_write_str("Welcome");
 	lcd_move_cursor(0, 1);
-	lcd_write_str("Press middle button");
+	lcd_write_str("Press right button");
 	lcd_move_cursor(0, 2);
 	lcd_write_str("to navigate to main");
 	lcd_move_cursor(0, 3);
