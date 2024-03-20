@@ -232,9 +232,13 @@ static void handle_ui_input(audio_event_iface_msg_t *msg) {
 		switch (ui_command) {
 			case UIC_SWITCH_OUTPUT:
 
-				if (speaker_state_index == SPEAKER_STATE_RADIO)
-					switch_state(SPEAKER_STATE_BT_PAIRING, NULL);
-				else switch_state(SPEAKER_STATE_RADIO, NULL);
+				if (speaker_state_index == SPEAKER_STATE_RADIO) {
+					if (bt_connected == 0) {
+						switch_state(SPEAKER_STATE_BT_PAIRING, NULL);
+					} else {
+						switch_state(SPEAKER_STATE_BLUETOOTH, NULL);
+					}
+				} else switch_state(SPEAKER_STATE_RADIO, NULL);
 				break;
 			case UIC_VOLUME_UP: set_volume(player_volume + 10); break;
 			case UIC_VOLUME_DOWN: set_volume(player_volume - 10); break;

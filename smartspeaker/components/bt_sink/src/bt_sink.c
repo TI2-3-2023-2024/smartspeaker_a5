@@ -22,6 +22,8 @@
 
 static const char *TAG = "BT_SINK";
 
+int bt_connected = 0;
+
 static void bt_app_avrc_ct_cb(esp_avrc_ct_cb_event_t event,
                               esp_avrc_ct_cb_param_t *p_param) {
 	esp_avrc_ct_cb_param_t *rc = p_param;
@@ -33,6 +35,12 @@ static void bt_app_avrc_ct_cb(esp_avrc_ct_cb_event_t event,
 			         rc->meta_rsp.attr_id, tmp);
 			audio_free(tmp);
 			break;
+		}
+		case ESP_AVRC_CT_CONNECTION_STATE_EVT: {
+			ESP_LOGI(TAG, "Connection changed state");
+			if (bt_connected == 0) bt_connected = 1;
+			else bt_connected = 0;
+			gpio_set_level(22, bt_connected);
 		}
 		default: break;
 	}
@@ -66,6 +74,7 @@ esp_err_t bt_sink_post_deinit(void) {
 
 	return ESP_OK;
 }
+
 
 esp_err_t bt_sink_init(audio_element_handle_t *elems, size_t count,
                        audio_event_iface_handle_t evt,
@@ -153,17 +162,6 @@ esp_err_t bt_sink_run(audio_event_iface_msg_t *msg, void *args) {
 		                   music_info.bits, music_info.channels);
 	}
 
-	/* Stop when the Bluetooth is disconnected or suspended */
-	if (msg->source_type == PERIPH_ID_BLUETOOTH &&
-	    msg->source == (void *)bt_periph) {
-		if (msg->cmd == PERIPH_BLUETOOTH_CONNECTED) {
-			ESP_LOGI(TAG, "Bluetooth connected");
-			gpio_set_level(22, 1);
-		} else if (msg->cmd == PERIPH_BLUETOOTH_DISCONNECTED) {
-			ESP_LOGW(TAG, "[ * ] Bluetooth disconnected");
-			gpio_set_level(22, 0);
-		}
-	}
 	/* Stop when the last pipeline element (i2s_stream_writer in this case)
 	 * receives stop event */
 	if (msg->source_type == AUDIO_ELEMENT_TYPE_ELEMENT &&
