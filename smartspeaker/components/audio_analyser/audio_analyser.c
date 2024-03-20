@@ -41,12 +41,12 @@
 	(GOERTZEL_FRAME_LENGTH_MS * GOERTZEL_SAMPLE_RATE_HZ / 1000)
 
 // Detect a tone when log manitude is above this value
-#define GOERTZEL_DETECTION_THRESHOLD 30.0f
+#define GOERTZEL_DETECTION_THRESHOLD 40.0f
 
 // Audio capture sample rate [Hz]
 #define AUDIO_SAMPLE_RATE 8000
 
-static const int GOERTZEL_DETECT_FREQS[] = { 450, 500, 550 };
+static const int GOERTZEL_DETECT_FREQS[] = { 200 };
 
 static const char *TAG = "AUDIO_ANALYSER";
 
@@ -77,7 +77,6 @@ static void detect_freq(int target_freq, float magnitude) {
 			SEND_DETECT_CMD(0);
 			set_opts_on_tone_detect = false;
 		}
-
 #ifdef CONFIG_LED_CONTROLLER_ENABLED
 		set_party_mode(SC_RAINBOW_FLASH);
 #endif
