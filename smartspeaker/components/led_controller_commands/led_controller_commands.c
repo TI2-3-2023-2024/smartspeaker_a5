@@ -5,8 +5,8 @@
 #include "utils/macro.h"
 #include <driver/i2c.h>
 
-static const char *TAG        = "LED_CONTROLLER_MASTER";
-static enum pm_cmd cur_pm_cmd = SC_OFF;
+static const char *TAG              = "LED_CONTROLLER_MASTER";
+static enum strip_cmd cur_strip_cmd = SC_OFF;
 
 esp_err_t led_controller_config_master(void) {
 	i2c_config_t conf_master = {
@@ -50,15 +50,15 @@ static esp_err_t send_command(uint8_t *msg, size_t len) {
 	return ESP_OK;
 }
 
-esp_err_t set_party_mode(enum pm_cmd cmd) {
+esp_err_t set_party_mode(enum strip_cmd cmd) {
 	if (cmd == SC_SET_VOLUME) return ESP_ERR_INVALID_STATE;
 
-	if (cur_pm_cmd != cmd) {
-		cur_pm_cmd = cmd;
+	if (cur_strip_cmd != cmd) {
+		cur_strip_cmd = cmd;
 
 		// The second element is irrelevant but is just to make sure we always
 		// have 2 bytes.
-		uint8_t msg[] = { cur_pm_cmd, 100 };
+		uint8_t msg[] = { cur_strip_cmd, 100 };
 		return send_command(msg, ARRAY_SIZE(msg));
 	}
 	return ESP_OK;
