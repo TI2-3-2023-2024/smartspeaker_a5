@@ -6,7 +6,7 @@
 #include "audio_event_iface.h"
 #include "esp_peripherals.h"
 
-int bt_connected;
+extern int bt_connected;
 
 /* TODO: fix documentation */
 
