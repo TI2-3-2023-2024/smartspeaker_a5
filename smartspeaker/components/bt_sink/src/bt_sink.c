@@ -106,15 +106,21 @@ esp_err_t bt_sink_init(audio_element_handle_t *elems, size_t count,
 esp_err_t bt_sink_deinit(audio_element_handle_t *elems, size_t count,
                          audio_event_iface_handle_t evt,
                          esp_periph_set_handle_t periph_set, void *args) {
-	ESP_LOGI(TAG, "Stop audio_pipeline");
-	audio_pipeline_stop(pipeline);
-	audio_pipeline_wait_for_stop(pipeline);
-	audio_pipeline_terminate(pipeline);
-
-	audio_pipeline_unregister(pipeline, bt_stream_reader);
-	audio_pipeline_unregister(pipeline, output_stream_writer);
-
 	ESP_RETURN_ON_ERROR(audio_pipeline_remove_listener(pipeline), TAG, "");
+
+	ESP_LOGI(TAG, "Stop audio_pipeline");
+	ESP_RETURN_ON_ERROR(audio_pipeline_stop(pipeline), TAG, "");
+	ESP_RETURN_ON_ERROR(audio_pipeline_wait_for_stop(pipeline), TAG, "");
+	ESP_RETURN_ON_ERROR(audio_pipeline_terminate(pipeline), TAG, "");
+
+	ESP_RETURN_ON_ERROR(audio_pipeline_unregister(pipeline, bt_stream_reader),
+	                    TAG, "");
+	ESP_RETURN_ON_ERROR(
+	    audio_pipeline_unregister(pipeline, output_stream_writer), TAG, "");
+
+	ESP_RETURN_ON_ERROR(audio_pipeline_deinit(pipeline), TAG, "");
+	ESP_RETURN_ON_ERROR(audio_element_deinit(bt_stream_reader), TAG, "");
+	ESP_RETURN_ON_ERROR(audio_element_deinit(output_stream_writer), TAG, "");
 
 	ESP_LOGI(TAG, "Destroy Bluetooth peripheral");
 	esp_periph_stop(bt_periph);
@@ -122,10 +128,6 @@ esp_err_t bt_sink_deinit(audio_element_handle_t *elems, size_t count,
 	esp_periph_destroy(bt_periph);
 	audio_event_iface_remove_listener(
 	    esp_periph_set_get_event_iface(periph_set), evt);
-
-	audio_pipeline_deinit(pipeline);
-	audio_element_deinit(bt_stream_reader);
-	audio_element_deinit(output_stream_writer);
 
 	return ESP_OK;
 }
