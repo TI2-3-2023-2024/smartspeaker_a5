@@ -77,9 +77,6 @@ static void detect_freq(int target_freq, float magnitude) {
 			SEND_DETECT_CMD(0);
 			set_opts_on_tone_detect = false;
 		}
-#ifdef CONFIG_LED_CONTROLLER_ENABLED
-		set_party_mode(SC_RAINBOW_FLASH);
-#endif
 	}
 }
 
