@@ -148,7 +148,7 @@ static void app_init(void) {
 #ifdef CONFIG_HUE_ENABLED
 	/* Initialize Hue */
 	ESP_LOGI(TAG, "Initialise Hue");
-	init_hue();
+	hue_init();
 #endif
 }
 
@@ -340,7 +340,7 @@ void app_main() {
 
 #ifdef CONFIG_HUE_ENABLED
 	/* Start Hue disco */
-	enable_hue(true);
+	hue_enable(true);
 #endif
 
 	/* Cannot start this because the tone detection task is still running. */

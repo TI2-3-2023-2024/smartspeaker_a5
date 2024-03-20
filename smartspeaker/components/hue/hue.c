@@ -48,7 +48,7 @@ static esp_err_t http_event_handler(esp_http_client_event_t *event) {
  * @brief Perform a HTTP-request
  * @param config The configuration for the request
  */
-void http_request(http_config *config) {
+static void http_request(http_config *config) {
 	// Create client
 	esp_http_client_config_t client_config = {  .url           = config->url,
 		                                        .event_handler = http_event_handler,
@@ -81,7 +81,7 @@ void http_request(http_config *config) {
 /**
  * TODO: Allow the ESP to request a key on its own and store it persistently
 */
-void init_hue() {
+void hue_init() {
 	ESP_LOGI(TAG, "Initializing Hue..");
 	hue_connected = 1;
 }
@@ -161,10 +161,10 @@ static char *get_json_purple() {
 }
 
 static void hue_not_connected() {
-	ESP_LOGE(TAG, "Hue not connected. Please call init_hue() first.");
+	ESP_LOGE(TAG, "Hue not connected. Please call hue_init() first.");
 }
 
-void enable_hue(int enable) { 
+void hue_enable(int enable) { 
     if (!hue_connected) {
         hue_not_connected();
         return;
@@ -178,27 +178,27 @@ void enable_hue(int enable) {
 		send_command(get_json_max_sat(), HUE_URL_GROUP);
         
         while (hue_enabled) {
-			set_hue_color(HUE_PURPLE);
+			hue_set_color(HUE_PURPLE);
 			send_command(get_json_off(), HUE_URL_GROUP);
 			send_command(get_json_on(), HUE_URL_GROUP);
 
-			set_hue_color(HUE_BLUE);
+			hue_set_color(HUE_BLUE);
 			send_command(get_json_off(), HUE_URL_GROUP);
 			send_command(get_json_on(), HUE_URL_GROUP);
 
-			set_hue_color(HUE_GREEN);
+			hue_set_color(HUE_GREEN);
 			send_command(get_json_off(), HUE_URL_GROUP);
 			send_command(get_json_on(), HUE_URL_GROUP);
 
-			set_hue_color(HUE_YELLOW);
+			hue_set_color(HUE_YELLOW);
 			send_command(get_json_off(), HUE_URL_GROUP);
 			send_command(get_json_on(), HUE_URL_GROUP);
 
-			set_hue_color(HUE_ORANGE);
+			hue_set_color(HUE_ORANGE);
 			send_command(get_json_off(), HUE_URL_GROUP);
 			send_command(get_json_on(), HUE_URL_GROUP);
 
-			set_hue_color(HUE_RED);
+			hue_set_color(HUE_RED);
 			send_command(get_json_off(), HUE_URL_GROUP);
 			send_command(get_json_on(), HUE_URL_GROUP);
 	    }
@@ -207,7 +207,7 @@ void enable_hue(int enable) {
     }
 }
 
-void set_hue_color(enum HueColor color) {
+void hue_set_color(enum HueColor color) {
 	if (!hue_connected) {
 		hue_not_connected();
 		return;

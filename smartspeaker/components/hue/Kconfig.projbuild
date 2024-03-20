@@ -4,7 +4,6 @@ menu "Hue"
         bool "Hue status"
         default n
         help
-            Enable or disable the hue feature.
-
+            Enable or disable the Hue feature.
 
 endmenu

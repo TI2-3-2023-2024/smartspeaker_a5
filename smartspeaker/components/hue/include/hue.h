@@ -5,13 +5,13 @@
 /**
  * @brief Initialize the Hue module
 */
-void init_hue(void);
+void hue_init(void);
 
 /**
  * @brief Enable or disable the Hue module
  * @param enable: true to enable, false to disable
 */
-void enable_hue(int enable);
+void hue_enable(int enable);
 
 enum HueColor {
     HUE_RED,
@@ -26,6 +26,6 @@ enum HueColor {
  * @brief Set the color of the Hue lights
  * @param color: the color to set the lights to
 */
-void set_hue_color(enum HueColor color);
+void hue_set_color(enum HueColor color);
 
 #endif // HUE_H
