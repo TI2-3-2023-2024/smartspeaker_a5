@@ -9,12 +9,15 @@
 
 enum sd_cmd {
 	SDC_CLOCK_DONE = 0,
-    SDC_BT_DONE = 1,
+	SDC_BT_DONE    = 1,
 };
 
 // TODO: documentation
 esp_err_t sd_play_run(audio_event_iface_msg_t *msg, void *args);
 
+/**
+ * @brief Plays the Bluetooth connection sound
+ */
 esp_err_t sd_play_run_bt(audio_event_iface_msg_t *msg, void *args);
 
 /**
