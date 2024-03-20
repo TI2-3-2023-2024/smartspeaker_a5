@@ -318,6 +318,7 @@ void handle_detect_input(audio_event_iface_msg_t *msg) {
 		// TODO: impl partymode load
 	}
 	sd_io_deinit();
+	set_opts_on_tone_detect = false;
 	audio_analyser_deinit(&detect_task);
 }
 
