@@ -73,9 +73,9 @@ void app_main(void) {
 	xTaskCreatePinnedToCore(strip_effects_init, "strip_effects", 2048,
 	                        (void *)&params, 5, &fx_handle, 1);
 
-	uint8_t buffer[2]; // buffer for reading i2c data
+	uint8_t buffer[4]; // buffer for reading i2c data
 	while (true) {
-		int len = i2c_slave_read_buffer(I2C_NUM_0, buffer, 2, portMAX_DELAY);
+		int len = i2c_slave_read_buffer(I2C_NUM_0, buffer, 4, portMAX_DELAY);
 		if (len < 0) {
 			ESP_LOGW(TAG, "Error receiving data from I2C master");
 			continue;
@@ -86,7 +86,11 @@ void app_main(void) {
 		struct queue_msg msg = {
 			.cmd    = buffer[0],
 			.volume = buffer[0] == PMC_SET_VOLUME ? buffer[1] : 0,
+			.red = buffer[1],
+			.green = buffer[2],
+			.blue = buffer[3],
 		};
 		xQueueSend(queue, &msg, portMAX_DELAY);
+		
 	}
 }

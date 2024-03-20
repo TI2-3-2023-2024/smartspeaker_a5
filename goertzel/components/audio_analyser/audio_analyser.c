@@ -28,19 +28,19 @@
 #define GOERTZEL_SAMPLE_RATE_HZ 8000
 
 // Block length in [ms]
-#define GOERTZEL_FRAME_LENGTH_MS 40
+#define GOERTZEL_FRAME_LENGTH_MS 50
 
 // Buffer length in samples
 #define GOERTZEL_BUFFER_LENGTH                                                 \
 	(GOERTZEL_FRAME_LENGTH_MS * GOERTZEL_SAMPLE_RATE_HZ / 1000)
 
 // Detect a tone when log manitude is above this value
-	#define GOERTZEL_DETECTION_THRESHOLD 30.0f
+	#define GOERTZEL_DETECTION_THRESHOLD 25.0f
 
 // Audio capture sample rate [Hz]
 #define AUDIO_SAMPLE_RATE 8000
 
-static const int GOERTZEL_DETECT_FREQS[] = { 880, 1100 };
+static const int GOERTZEL_DETECT_FREQS[] = { 880, 690, 1100 };
 
 static const char *TAG = "AUDIO_ANALYSER";
 
@@ -55,7 +55,6 @@ static audio_pipeline_handle_t pipeline;
  * Use a logarithm for the magnitude
  */
 static void detect_freq(int target_freq, float magnitude) {
-				ESP_LOGI(TAG, "detect freq");
 
 	float logMagnitude = 10.0f * log10f(magnitude);
 				ESP_LOGI(TAG, "%f", logMagnitude);
@@ -68,7 +67,13 @@ static void detect_freq(int target_freq, float magnitude) {
 
 			// TODO react to freq
 #ifdef CONFIG_LED_CONTROLLER_ENABLED
-		set_party_mode(PMC_RAINBOW_FLASH);
+		if (target_freq == GOERTZEL_DETECT_FREQS[0]) {
+			set_color(100, 0, 0);
+		} else if (target_freq == GOERTZEL_DETECT_FREQS[1]) {
+			set_color(0,0,100);
+		} else if (target_freq == GOERTZEL_DETECT_FREQS[2]) {
+			set_color(0,100,0);
+		}
 #endif
 	}
 }
@@ -111,7 +116,7 @@ void tone_detection_task(void *args) {
 	audio_pipeline_run(pipeline);
 
 	while (1) {
-		vTaskDelay(pdMS_TO_TICKS(500));
+		vTaskDelay(pdMS_TO_TICKS(1000));
 		raw_stream_read(i2s_stream_reader, (char *)raw_buffer,
 		                sizeof *raw_buffer * GOERTZEL_BUFFER_LENGTH);
 
@@ -124,6 +129,7 @@ void tone_detection_task(void *args) {
 
 			if (goertzel_filter_new_magnitude(&filters_data[f], &magnitude)) {
 				detect_freq(filters_cfg[f].target_freq, magnitude);
+				vTaskDelay(pdMS_TO_TICKS(400));
 			}
 		}
 	}
@@ -131,7 +137,7 @@ exit:
 	return;
 }
 
-void audio_analyser_init(void) {
+void audio_analyser_init(void) { 
 	/* Init i2s stream reader */
 	ESP_LOGI(TAG, "Create i2s stream to read data from codec chip");
 	i2s_stream_cfg_t i2s_cfg_reader = I2S_STREAM_CFG_DEFAULT();

@@ -129,7 +129,7 @@ static void app_init(void) {
 #endif
 
 	// Starts audio analyser task
-	xTaskCreate(tone_detection_task, "tone_detection_task", 2048, NULL, 5,
+	xTaskCreate(tone_detection_task, "tone_detection_task", 3000, NULL, 5,
 	            NULL);
 	ESP_LOGI(TAG, "After task creaton in main file");
 }

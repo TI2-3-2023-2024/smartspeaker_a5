@@ -11,9 +11,13 @@ enum pm_cmd {
 	PMC_OFF = 0,
 	PMC_SET_VOLUME,
 	PMC_RAINBOW_FLASH,
-	PMC_RAINBOW_SMOOTH,
-	PMC_RAINBOW_TRAIL,
+	PMC_CUSTOM_COLOR,
 };
+
+/**
+ * Update led lights to specific value
+ */
+esp_err_t set_color(uint8_t red, uint8_t green, uint8_t blue);
 
 /**
  * Configure LyraT as master in i2c communication

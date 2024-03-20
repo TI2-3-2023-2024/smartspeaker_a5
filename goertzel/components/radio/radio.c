@@ -34,7 +34,7 @@ audio_pipeline_handle_t pipeline;
 audio_element_handle_t i2s_stream_writer, mp3_decoder, http_stream_reader;
 
 // Add more channels to your liking
-static const radio_channel channels[] = {
+	static const radio_channel channels[] = {
 	{ .name = "Radio1Rock",
 	  .url  = "http://stream.radioreklama.bg:80/radio1rock128" },
 	{ .name = "Radio 1 Classics",

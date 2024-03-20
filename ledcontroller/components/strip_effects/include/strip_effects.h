@@ -15,8 +15,7 @@ enum pm_cmd {
 	PMC_OFF = 0,
 	PMC_SET_VOLUME,
 	PMC_RAINBOW_FLASH,
-	PMC_RAINBOW_SMOOTH,
-	PMC_RAINBOW_TRAIL,
+	PMC_CUSTOM_COLOR,
 };
 
 /*
@@ -33,6 +32,9 @@ struct strip_fx_params {
 struct queue_msg {
 	enum pm_cmd cmd;
 	int volume;
+	uint8_t red;
+	uint8_t green;
+	uint8_t blue;
 };
 
 /**

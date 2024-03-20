@@ -58,13 +58,26 @@ esp_err_t set_party_mode(enum pm_cmd cmd) {
 
 		// The second element is irrelevant but is just to make sure we always
 		// have 2 bytes.
-		uint8_t msg[] = { cur_pm_cmd, 100 };
+		uint8_t msg[] = { cur_pm_cmd, 0, 0, 0 };
 		return send_command(msg, ARRAY_SIZE(msg));
 	}
 	return ESP_OK;
 }
 
 esp_err_t led_controller_show_volume(int player_volume) {
-	uint8_t msg[] = { PMC_SET_VOLUME, player_volume };
+	uint8_t msg[] = { PMC_SET_VOLUME, player_volume, 0, 0 };
 	return send_command(msg, ARRAY_SIZE(msg));
 }
+
+esp_err_t set_color(uint8_t red, uint8_t green, uint8_t blue) {
+    // Controleer of de kleurwaarden binnen het geldige bereik liggen (0-100).
+    if (red > 100 || green > 100 || blue > 100) {
+        ESP_LOGE(TAG, "Invalid color values: R=%u, G=%u, B=%u", red, green, blue);
+        return ESP_ERR_INVALID_ARG;
+    }
+	uint8_t msg[] = { PMC_CUSTOM_COLOR, red, green, blue };
+	return send_command(msg, ARRAY_SIZE(msg));
+
+    return ESP_OK;
+}
+

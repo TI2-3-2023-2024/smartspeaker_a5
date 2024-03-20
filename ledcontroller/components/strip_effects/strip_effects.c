@@ -61,6 +61,31 @@ esp_err_t set_strip(uint8_t r, uint8_t g, uint8_t b) {
 	return ESP_OK;
 }
 
+
+/**
+ * @brief Sets a specific LED on the strip to a specified color.
+ * @param led_num The index of the LED to set the color for.
+ * @param red The intensity of red color (0-100).
+ * @param green The intensity of green color (0-100).
+ * @param blue The intensity of blue color (0-100).
+ * @return ESP_OK on success, otherwise an error code.
+ */
+esp_err_t set_led_color(uint8_t led_num, uint8_t red, uint8_t green, uint8_t blue) {
+    if (led_num >= LED_AMOUNT) {
+        ESP_LOGE(TAG, "Invalid LED index: %d", led_num);
+        return ESP_ERR_INVALID_ARG;
+    }
+    
+    ESP_RETURN_ON_ERROR(strip->set_pixel(strip, led_num, red, green, blue), TAG,
+                        "Failed to set color for LED %d (R:%d G:%d B:%d)", led_num, red, green, blue);
+    
+    ESP_RETURN_ON_ERROR(strip->refresh(strip, 100), TAG,
+                        "Failed to refresh LED strip");
+    
+    return ESP_OK;
+}
+
+
 /**
  * @brief Clears the strip by turning off all LEDs.
  * @return Whether the strip was successfully cleared.
@@ -154,6 +179,7 @@ void strip_effects_init(void *params) {
 				break;
 			case PMC_SET_VOLUME: wait = vol_show(volume); break;
 			case PMC_RAINBOW_FLASH: wait = rb_flash_eff(); break;
+			case PMC_CUSTOM_COLOR: wait = set_strip(msg.red, msg.green, msg.blue); break;
 			default:
 				break;
 				// case PMC_RAINBOW_SMOOTH: rb_smooth_eff(); break;
