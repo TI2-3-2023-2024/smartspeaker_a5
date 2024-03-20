@@ -176,9 +176,29 @@ void enable_hue(int enable) {
 
 		send_command(get_json_max_bri(), HUE_URL_GROUP);
 		send_command(get_json_max_sat(), HUE_URL_GROUP);
-        set_hue_color(HUE_PURPLE);
-
+        
         while (hue_enabled) {
+			set_hue_color(HUE_PURPLE);
+			send_command(get_json_off(), HUE_URL_GROUP);
+			send_command(get_json_on(), HUE_URL_GROUP);
+
+			set_hue_color(HUE_BLUE);
+			send_command(get_json_off(), HUE_URL_GROUP);
+			send_command(get_json_on(), HUE_URL_GROUP);
+
+			set_hue_color(HUE_GREEN);
+			send_command(get_json_off(), HUE_URL_GROUP);
+			send_command(get_json_on(), HUE_URL_GROUP);
+
+			set_hue_color(HUE_YELLOW);
+			send_command(get_json_off(), HUE_URL_GROUP);
+			send_command(get_json_on(), HUE_URL_GROUP);
+
+			set_hue_color(HUE_ORANGE);
+			send_command(get_json_off(), HUE_URL_GROUP);
+			send_command(get_json_on(), HUE_URL_GROUP);
+
+			set_hue_color(HUE_RED);
 			send_command(get_json_off(), HUE_URL_GROUP);
 			send_command(get_json_on(), HUE_URL_GROUP);
 	    }
