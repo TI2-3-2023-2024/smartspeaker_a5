@@ -336,7 +336,7 @@ void app_main() {
 
 	set_volume(50);
 
-	/* Hue test */
+	/* Start Hue disco */
 	enable_hue(true);
 
 	/* Cannot start this because the tone detection task is still running. */
