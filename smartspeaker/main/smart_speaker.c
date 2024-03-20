@@ -145,9 +145,11 @@ static void app_init(void) {
 	xTaskCreate(tone_detection_task, "tone_detection_task", 3000, NULL, 5,
 	            &detect_task);
 
+#ifdef CONFIG_HUE_ENABLED
 	/* Initialize Hue */
 	ESP_LOGI(TAG, "Initialise Hue");
 	init_hue();
+#endif
 }
 
 static void app_free(void) {
@@ -336,8 +338,10 @@ void app_main() {
 
 	set_volume(50);
 
+#ifdef CONFIG_HUE_ENABLED
 	/* Start Hue disco */
 	enable_hue(true);
+#endif
 
 	/* Cannot start this because the tone detection task is still running. */
 	// wifi_wait(portMAX_DELAY);

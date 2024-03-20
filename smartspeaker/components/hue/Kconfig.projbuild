@@ -1,0 +1,10 @@
+menu "Hue"
+
+    config HUE_ENABLED
+        bool "Hue status"
+        default n
+        help
+            Enable or disable the hue feature.
+
+
+endmenu
