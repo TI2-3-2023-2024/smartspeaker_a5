@@ -234,7 +234,10 @@ static void handle_ui_input(audio_event_iface_msg_t *msg) {
 
 		switch (ui_command) {
 			case UIC_SWITCH_OUTPUT:
-				if (set_opts_on_tone_detect) set_opts_on_tone_detect = false;
+				if (set_opts_on_tone_detect) {
+					set_opts_on_tone_detect = false;
+					audio_analyser_deinit(&detect_task);
+				}
 				if (speaker_state_index == SPEAKER_STATE_RADIO) {
 					if (bt_connected == 0) {
 						switch_state(SPEAKER_STATE_BT_PAIRING, NULL);
