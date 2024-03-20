@@ -316,13 +316,13 @@ void handle_detect_input(audio_event_iface_msg_t *msg) {
 		         opts.state, opts.volume, opts.party_mode);
 		switch_state(opts.state, NULL);
 		set_volume(opts.volume);
-		// TODO: impl partymode load
+		set_party_mode(opts.party_mode ? SC_RAINBOW_FLASH : SC_OFF);
 	} else {
 		ESP_LOGW(TAG, "No valid configuration found, setting default opts "
 		              "state: radio, volume: 50, party_mode: false");
 		switch_state(SPEAKER_STATE_RADIO, NULL);
 		set_volume(50);
-		// TODO: impl partymode load
+		set_party_mode(SC_OFF);
 	}
 	sd_io_deinit();
 	set_opts_on_tone_detect = false;
