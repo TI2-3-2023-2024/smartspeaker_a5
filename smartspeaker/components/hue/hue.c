@@ -8,16 +8,13 @@
 
 static const char *TAG = "HUE";
 
-// const char *HUE_URL_TEST = "http://192.168.1.179/api/ZKGt8jXLbGpguny1Vq50ZTXjkCR9wLQCBWjGu3MK/lights";
-const char *HUE_URL_GROUP = "http://192.168.1.179/api/ZKGt8jXLbGpguny1Vq50ZTXjkCR9wLQCBWjGu3MK/groups/4/action";
+static const char *HUE_URL_GROUP = "http://192.168.1.179/api/ZKGt8jXLbGpguny1Vq50ZTXjkCR9wLQCBWjGu3MK/groups/4/action";
 
 /*
-Light IDs
+# LA134 Hue configuration
+## Light IDs
 10,11,12,14,15,16,17,18
-Emulator
-127.0.0.1:8000/api/newdeveloper/
-127.0.0.1:8000/api/newdeveloper/lights/1/state
-LA134 Max
+## Base URL/key
 http://192.168.1.179/api/ZKGt8jXLbGpguny1Vq50ZTXjkCR9wLQCBWjGu3MK/
 */
 
@@ -33,59 +30,16 @@ static int hue_enabled   = 0;
 /**
  * @brief Handle HTTP response event
  * @param event The event to handle
+ * TODO: process responses in a memory-efficient way
  */
 static esp_err_t http_event_handler(esp_http_client_event_t *event) {
-	// // Create buffer for full output message
-	// static char *output_buffer;
-	// static int output_len;
-
 	// Handle event by type
 	if (event->event_id == HTTP_EVENT_ON_DATA) {
         ESP_LOGI(TAG, "Handler received data!");
-	// 	if (!esp_http_client_is_chunked_response(event->client)) {
-	// 		if (output_buffer == NULL) {
-	// 			// Initialize output buffer
-	// 			output_buffer = (char *)malloc(esp_http_client_get_content_length(event->client));
-	// 			output_len = 0;
-	// 			if (output_buffer == NULL) {
-	// 				ESP_LOGE(TAG, "Handler failed to allocate memory for output buffer.");
-	// 				return ESP_FAIL;
-	// 			}
-	// 		}
-	// 		// Copy new data to output buffer
-	// 		memcpy(output_buffer + output_len, event->data, event->data_len);
-	// 		output_len += event->data_len;
-	// 	}
 	} else if (event->event_id == HTTP_EVENT_ON_FINISH) {
 		ESP_LOGI(TAG, "Handler received finish!");
-	// 	if (output_buffer != NULL) {
-    //         ESP_LOGI(TAG, "Handler received finish! Output buffer: %s", output_buffer);
-
-	// 		// Parse output buffer to json object
-	// 		cJSON *json = cJSON_Parse(output_buffer);
-	// 		if (cJSON_IsObject(json)) {
-    //             ESP_LOGI(TAG, "JSON object found!");
-    //         }
-
-	// 		// Post event to default event loop
-	// 		// ESP_LOGI(TAG, "Posting HTTP response event");
-	// 		// ESP_EVENT_DEFINE_BASE(HTTP_EVENT);
-	// 		// ESP_ERROR_CHECK(esp_event_post(HTTP_EVENT, 0, output_buffer,strlen(output_buffer) + 1, portMAX_DELAY));
-
-	// 		// Free output buffer
-	// 		free(output_buffer);
-	// 		output_buffer = NULL;
-	// 	} else {
-    //         ESP_LOGE(TAG, "Handler received finish, but output buffer was null.");
-    //     }
-	// 	output_len = 0;
 	} else if (event->event_id == HTTP_EVENT_DISCONNECTED) {
 		ESP_LOGI(TAG, "Handler received disconnect!");
-	// 	if (output_buffer != NULL) {
-	// 		// Free output buffer
-	// 		free(output_buffer);
-	// 		output_buffer = NULL;
-	// 	}
 	}
 	return ESP_OK;
 }
@@ -125,27 +79,11 @@ void http_request(http_config *config) {
 	vTaskDelete(NULL);
 }
 
+/**
+ * TODO: Allow the ESP to request a key on its own and store it persistently
+*/
 void init_hue() {
 	ESP_LOGI(TAG, "Initializing Hue..");
-
-	// Register event
-	ESP_EVENT_DEFINE_BASE(HTTP_EVENT);
-	ESP_ERROR_CHECK(esp_event_handler_register(
-	    HTTP_EVENT, HTTP_RESPONSE,
-	    (esp_event_handler_t)http_event_handler, NULL));
-
-	// const char *stringbody = "{\n"
-	//                          "\tdevicetype: \"mhager#lyrat\"\n"
-	//                          "}";
-	// cJSON *body = cJSON_Parse(stringbody);
-
-	// http_config config = {
-	// 	.url		= HUE_URL_TEST,
-	// 	.method		= HTTP_METHOD_GET,
-	// 	.body		= body
-	// };
-	// xTaskCreate((TaskFunction_t)http_request, "hue_http_request", 10000, &config, 5, NULL);
-	// vTaskDelay(20 / portTICK_RATE_MS);
 	hue_connected = 1;
 }
 
@@ -181,8 +119,7 @@ static char *get_json_red() {
 
 void enable_hue(int enable) { 
     if (!hue_connected) {
-        ESP_LOGE(TAG, "Hue not connected. Attempting to connect...");
-        init_hue();
+        ESP_LOGE(TAG, "Hue not connected. Please call init_hue() first.");
         return;
     }
     hue_enabled = enable;
