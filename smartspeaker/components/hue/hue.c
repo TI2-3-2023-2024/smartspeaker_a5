@@ -34,13 +34,13 @@ static int hue_enabled   = 0;
  */
 static esp_err_t http_event_handler(esp_http_client_event_t *event) {
 	// Handle event by type
-	if (event->event_id == HTTP_EVENT_ON_DATA) {
-        ESP_LOGI(TAG, "Handler received data!");
-	} else if (event->event_id == HTTP_EVENT_ON_FINISH) {
-		ESP_LOGI(TAG, "Handler received finish!");
-	} else if (event->event_id == HTTP_EVENT_DISCONNECTED) {
-		ESP_LOGI(TAG, "Handler received disconnect!");
-	}
+	// if (event->event_id == HTTP_EVENT_ON_DATA) {
+    //     ESP_LOGI(TAG, "Handler received data!");
+	// } else if (event->event_id == HTTP_EVENT_ON_FINISH) {
+	// 	ESP_LOGI(TAG, "Handler received finish!");
+	// } else if (event->event_id == HTTP_EVENT_DISCONNECTED) {
+	// 	ESP_LOGI(TAG, "Handler received disconnect!");
+	// }
 	return ESP_OK;
 }
 
@@ -60,6 +60,7 @@ void http_request(http_config *config) {
 	// Set post field if body is present
     const char* body = cJSON_Print((config->body));
 	if (body != NULL) {
+		ESP_LOGI(TAG, "Setting post field with body: %s", body);
 		esp_http_client_set_post_field(client, body, (int)strlen(body));
 	}
 
@@ -67,9 +68,7 @@ void http_request(http_config *config) {
 	esp_err_t err = esp_http_client_perform(client);
 	if (err == ESP_OK) {
 		int status_code    = esp_http_client_get_status_code(client);
-		int content_length = esp_http_client_get_content_length(client);
-		ESP_LOGI(TAG, "HTTP request status = %d, content_length = %d",
-		         status_code, content_length);
+		ESP_LOGI(TAG, "HTTP request status: %d", status_code);
 	} else {
 		ESP_LOGE(TAG, "HTTP request failed: %s", esp_err_to_name(err));
 	}
@@ -89,53 +88,129 @@ void init_hue() {
 
 static void send_command(char *body_string, const char *url) {
 	cJSON *body = cJSON_Parse(body_string);
-    ESP_LOGI(TAG, "Sending lights command with body: %s", cJSON_Print(body));
 
 	http_config config = {  .url      = url,
 		                    .method   = HTTP_METHOD_PUT,
 		                    .body     = body };
 
     xTaskCreate((TaskFunction_t)http_request, "hue_http_request", 5000, &config, 5, NULL);
-	vTaskDelay(80 / portTICK_RATE_MS);
+	vTaskDelay(2000 / portTICK_RATE_MS);
 }
 
-static char *get_json_true() {
+static char *get_json_on() {
 	return "{\n"
 	       "\t\"on\":true\n"
 	       "}";
 }
 
-static char *get_json_false() {
+static char *get_json_off() {
 	return "{\n"
 	       "\t\"on\":false\n"
 	       "}";
 }
 
+// Brightness value (0-254)
+static char *get_json_max_bri() {
+	return "{\n"
+	       "\t\"bri\":254\n"
+	       "}";
+}
+
+// Saturation value (0-254)
+static char *get_json_max_sat() {
+	return "{\n"
+	       "\t\"sat\":254\n"
+	       "}";
+}
+
+// Hue value (0-65535)
 static char *get_json_red() {
 	return "{\n"
 	       "\t\"hue\":0\n"
 	       "}";
 }
 
+static char *get_json_green() {
+	return "{\n"
+	       "\t\"hue\":25500\n"
+	       "}";
+}
+
+static char *get_json_blue() {
+	return "{\n"
+	       "\t\"hue\":46920\n"
+	       "}";
+}
+
+static char *get_json_yellow() {
+	return "{\n"
+	       "\t\"hue\":12750\n"
+	       "}";
+}
+
+static char *get_json_orange() {
+	return "{\n"
+	       "\t\"hue\":65535\n"
+	       "}";
+}
+
+static char *get_json_purple() {
+	return "{\n"
+	       "\t\"hue\":56100\n"
+	       "}";
+}
+
+static void hue_not_connected() {
+	ESP_LOGE(TAG, "Hue not connected. Please call init_hue() first.");
+}
+
 void enable_hue(int enable) { 
     if (!hue_connected) {
-        ESP_LOGE(TAG, "Hue not connected. Please call init_hue() first.");
+        hue_not_connected();
         return;
     }
     hue_enabled = enable;
 
     if (hue_enabled) {
-        send_command(get_json_red(), HUE_URL_GROUP);
-        send_command(get_json_true(), HUE_URL_GROUP);
+		send_command(get_json_on(), HUE_URL_GROUP);
+
+		send_command(get_json_max_bri(), HUE_URL_GROUP);
+		send_command(get_json_max_sat(), HUE_URL_GROUP);
+        set_hue_color(HUE_PURPLE);
 
         while (hue_enabled) {
-		send_command(get_json_false(), HUE_URL_GROUP);
-		vTaskDelay(2000 / portTICK_RATE_MS);
-
-		send_command(get_json_true(), HUE_URL_GROUP);
-		vTaskDelay(2000 / portTICK_RATE_MS);
+			send_command(get_json_off(), HUE_URL_GROUP);
+			send_command(get_json_on(), HUE_URL_GROUP);
 	    }
     } else {
-        send_command(get_json_false(), HUE_URL_GROUP);
+        send_command(get_json_off(), HUE_URL_GROUP);
     }
+}
+
+void set_hue_color(enum HueColor color) {
+	if (!hue_connected) {
+		hue_not_connected();
+		return;
+	}
+
+	switch (color) {
+		case HUE_RED:
+			send_command(get_json_red(), HUE_URL_GROUP);
+			break;
+		case HUE_GREEN:
+			send_command(get_json_green(), HUE_URL_GROUP);
+			break;
+		case HUE_BLUE:
+			send_command(get_json_blue(), HUE_URL_GROUP);
+			break;
+		case HUE_YELLOW:
+			send_command(get_json_yellow(), HUE_URL_GROUP);
+			break;
+		case HUE_ORANGE:
+			send_command(get_json_orange(), HUE_URL_GROUP);
+			break;
+		case HUE_PURPLE:
+			send_command(get_json_purple(), HUE_URL_GROUP);
+			break;
+	}
 }
